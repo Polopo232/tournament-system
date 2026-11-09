@@ -9,15 +9,20 @@ and every player has an Elo rating that changes after each match.
 ```
 TournamentSystem.sln
 src/
-  TournamentSystem.Api/      ASP.NET Core Web API (business logic, EF Core, JWT)
-  TournamentSystem.Worker/   Worker Service (recalculates Elo and creates next rounds)
+  TournamentSystem.Domain/          Entities and enums
+  TournamentSystem.Application/     Business logic (services, DTOs, interfaces)
+  TournamentSystem.Infrastructure/  EF Core DbContext, migrations, repositories
+  TournamentSystem.Api/             ASP.NET Core Web API (controllers, JWT, Swagger)
+  TournamentSystem.Worker/          Worker Service (recalculates Elo and creates next rounds)
 tests/
-  TournamentSystem.Tests/    xUnit unit tests
+  TournamentSystem.UnitTests/       xUnit unit tests
+tournament-web/                     React web client (Vite)
 ```
 
 ## Requirements
 
 - .NET 10 SDK
+- Node.js 20+
 
 ## Build and run
 
@@ -26,4 +31,10 @@ dotnet build
 dotnet run --project src/TournamentSystem.Api
 dotnet run --project src/TournamentSystem.Worker
 dotnet test
+```
+
+```bash
+cd tournament-web
+npm install
+npm run dev
 ```

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using TournamentSystem.Api.Models;
+using TournamentSystem.Domain.Entities;
 
-namespace TournamentSystem.Api.Data;
+namespace TournamentSystem.Infrastructure.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

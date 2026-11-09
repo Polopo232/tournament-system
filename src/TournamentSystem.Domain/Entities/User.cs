@@ -1,4 +1,4 @@
-namespace TournamentSystem.Api.Models;
+namespace TournamentSystem.Domain.Entities;
 
 public class User
 {

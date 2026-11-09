@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TournamentSystem.Api.Data;
+using TournamentSystem.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
