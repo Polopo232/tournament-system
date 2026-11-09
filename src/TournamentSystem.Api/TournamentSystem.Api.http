@@ -1,3 +1,41 @@
 @host = http://localhost:5195
 
+### Login as admin
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+
 ###
+@token = {{login.response.body.$.token}}
+
+### Current user
+GET {{host}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Register a new player
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "newplayer",
+  "email": "newplayer@tournament.local",
+  "password": "Player123!"
+}
+
+### All users (Admin only)
+GET {{host}}/api/users
+Authorization: Bearer {{token}}
+
+### Change user role (Admin only)
+PUT {{host}}/api/users/4/role
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "Organizer"
+}

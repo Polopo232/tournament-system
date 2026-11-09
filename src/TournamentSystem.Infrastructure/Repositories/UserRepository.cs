@@ -7,6 +7,11 @@ namespace TournamentSystem.Infrastructure.Repositories;
 
 public class UserRepository(AppDbContext db) : IUserRepository
 {
+    public Task<List<User>> GetAllAsync()
+    {
+        return db.Users.OrderBy(u => u.Id).ToListAsync();
+    }
+
     public Task<User?> GetByIdAsync(int id)
     {
         return db.Users.FirstOrDefaultAsync(u => u.Id == id);
