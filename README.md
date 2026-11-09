@@ -16,11 +16,13 @@ src/
   TournamentSystem.Worker/          Worker Service (recalculates Elo and creates next rounds)
 tests/
   TournamentSystem.UnitTests/       xUnit unit tests
+tournament-web/                     React web client (Vite)
 ```
 
 ## Requirements
 
 - .NET 10 SDK
+- Node.js 20+
 
 ## Build and run
 
@@ -29,4 +31,10 @@ dotnet build
 dotnet run --project src/TournamentSystem.Api
 dotnet run --project src/TournamentSystem.Worker
 dotnet test
+```
+
+```bash
+cd tournament-web
+npm install
+npm run dev
 ```
