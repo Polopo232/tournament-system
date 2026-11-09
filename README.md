@@ -33,6 +33,17 @@ dotnet tool restore
 dotnet ef database update --project src/TournamentSystem.Infrastructure --startup-project src/TournamentSystem.Api
 ```
 
+The database is migrated and filled with test data automatically when the API starts.
+
+### Test accounts
+
+| Username | Password | Role |
+|---|---|---|
+| admin | Admin123! | Admin |
+| organizer | Organizer123! | Organizer |
+| service | Service123! | Service |
+| player1 ... player8 | Player123! | Player |
+
 ## Build and run
 
 ```bash
