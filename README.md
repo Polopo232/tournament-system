@@ -24,6 +24,15 @@ tournament-web/                     React web client (Vite)
 - .NET 10 SDK
 - Node.js 20+
 
+## Database
+
+SQL Server LocalDB is used by default (connection string in `src/TournamentSystem.Api/appsettings.json`).
+
+```bash
+dotnet tool restore
+dotnet ef database update --project src/TournamentSystem.Infrastructure --startup-project src/TournamentSystem.Api
+```
+
 ## Build and run
 
 ```bash
