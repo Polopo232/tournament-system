@@ -1,7 +1,10 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Filters;
 using TournamentSystem.Application.Interfaces;
 using TournamentSystem.Application.Services;
 using TournamentSystem.Infrastructure.Data;
@@ -21,6 +24,18 @@ builder.Services.AddScoped<IRatingRepository, RatingRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+const string ReactCorsPolicy = "ReactClientPolicy";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(ReactCorsPolicy, policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -53,7 +68,55 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Tournament System API",
+        Version = "v1",
+        Description = "Turniirisüsteemi Web API dokumentatsioon"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Sisesta oma JWT token."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    var xmlFiles = Directory.GetFiles(AppContext.BaseDirectory, "*.xml", SearchOption.TopDirectoryOnly);
+    foreach (var xmlFile in xmlFiles)
+    {
+        options.IncludeXmlComments(xmlFile, includeControllerXmlComments: true);
+    }
+
+    options.ExampleFilters();
+});
+
+builder.Services.AddSwaggerExamplesFromAssemblies(
+    Assembly.GetExecutingAssembly(),
+    typeof(IUserService).Assembly
+);
 
 var app = builder.Build();
 
@@ -65,10 +128,15 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Tournament System API v1");
+    });
 }
 
 app.UseHttpsRedirection();
+app.UseCors(ReactCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
