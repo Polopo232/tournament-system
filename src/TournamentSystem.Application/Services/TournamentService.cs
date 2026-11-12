@@ -3,10 +3,14 @@ using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Exceptions;
 using TournamentSystem.Application.Interfaces;
 using TournamentSystem.Domain.Entities;
+using static TournamentSystem.Application.DTOs.TournamentDetailsDto;
 
 namespace TournamentSystem.Application.Services;
 
-public class TournamentService(ITournamentRepository tournaments, ILogger<TournamentService> logger) : ITournamentService
+public class TournamentService(
+    ITournamentRepository tournaments,
+    IUserRepository users,
+    ILogger<TournamentService> logger) : ITournamentService
 {
     public async Task<PagedResultDto<TournamentDetailsDto>> GetAllAsync(TournamentQueryParams queryParams)
     {
@@ -141,5 +145,48 @@ public class TournamentService(ITournamentRepository tournaments, ILogger<Tourna
         await tournaments.SaveChangesAsync();
 
         logger.LogInformation("Turniir (ID: {Id}) kustutatud", id);
+    }
+
+    public async Task<RegistrationDto> RegisterPlayerAsync(int tournamentId, int playerId)
+    {
+        var tournament = await tournaments.GetByIdAsync(tournamentId)
+            ?? throw new NotFoundException($"Tournament with ID {tournamentId} was not found.");
+
+        var player = await users.GetByIdAsync(playerId)
+            ?? throw new NotFoundException($"Player with ID {playerId} was not found.");
+
+        // 1. Tournament don't start yet
+        if (tournament.Status != TournamentStatus.Registration)
+        {
+            throw new ValidationException("Registration is closed because the tournament has already started or finished.");
+        }
+
+        // 2. Player don't reg yet
+        if (await tournaments.IsPlayerRegisteredAsync(tournamentId, playerId))
+        {
+            throw new ValidationException("Player is already registered for this tournament.");
+        }
+
+        // 3. Control registration count
+        if (tournament.Registrations.Count >= tournament.MaxPlayers)
+        {
+            throw new ValidationException("Tournament is already full.");
+        }
+
+        var registration = new Registration
+        {
+            TournamentId = tournamentId,
+            PlayerId = playerId,
+            RegisteredAt = DateTime.UtcNow
+        };
+
+        tournaments.AddRegistration(registration);
+        await tournaments.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Mängija {Username} (ID: {PlayerId}) registreerus turniirile {TournamentName} (ID: {TournamentId})",
+            player.Username, playerId, tournament.Name, tournamentId);
+
+        return RegistrationDto.FromEntity(registration);
     }
 }

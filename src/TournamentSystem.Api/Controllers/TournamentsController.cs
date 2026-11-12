@@ -1,8 +1,9 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Interfaces;
+using static TournamentSystem.Application.DTOs.TournamentDetailsDto;
 
 namespace TournamentSystem.Api.Controllers;
 
@@ -97,5 +98,27 @@ public class TournamentsController(ITournamentService tournamentService) : Contr
     {
         await tournamentService.DeleteAsync(id);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Registreerib hetkel sisselogitud mängija avatud turniirile.
+    /// </summary>
+    /// <param name="id">Turniiri unikaalne ID.</param>
+    /// <response code="201">Mängija edukalt turniirile registreeritud.</response>
+    /// <response code="400">Ärireegli viga (turniir on juba alanud, mängija on juba registreeritud või kohad on täis).</response>
+    /// <response code="401">Kasutaja ei ole autenditud.</response>
+    /// <response code="404">Turniiri või mängijat ei leitud.</response>
+    [HttpPost("{id}/registrations")]
+    [Authorize(Roles = "Player,Organizer,Admin")]
+    [ProducesResponseType(typeof(RegistrationDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<RegistrationDto>> Register(int id)
+    {
+        var playerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var registration = await tournamentService.RegisterPlayerAsync(id, playerId);
+
+        return StatusCode(StatusCodes.Status201Created, registration);
     }
 }

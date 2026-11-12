@@ -302,4 +302,45 @@ public class TournamentDetailsDto
             RegisteredPlayersCount = t.Registrations?.Count ?? 0
         };
     }
+
+    /// <summary>
+    /// Turniirile registreerimise vastuse mudel.
+    /// </summary>
+    public class RegistrationDto
+    {
+        /// <summary>
+        /// Registreerimise unikaalne ID.
+        /// </summary>
+        /// <example>1</example>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// Turniiri ID.
+        /// </summary>
+        /// <example>1</example>
+        public int TournamentId { get; set; }
+
+        /// <summary>
+        /// Registreeritud mängija ID.
+        /// </summary>
+        /// <example>4</example>
+        public int PlayerId { get; set; }
+
+        /// <summary>
+        /// Registreerimise aeg (UTC).
+        /// </summary>
+        /// <example>2026-11-12T14:30:00Z</example>
+        public DateTime RegisteredAt { get; set; }
+
+        public static RegistrationDto FromEntity(Registration r)
+        {
+            return new RegistrationDto
+            {
+                Id = r.Id,
+                TournamentId = r.TournamentId,
+                PlayerId = r.PlayerId,
+                RegisteredAt = r.RegisteredAt
+            };
+        }
+    }
 }
