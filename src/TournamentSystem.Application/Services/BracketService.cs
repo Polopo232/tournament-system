@@ -9,6 +9,7 @@ namespace TournamentSystem.Application.Services;
 public class BracketService(
     ITournamentRepository tournaments,
     IMatchRepository matches,
+    ITournamentNotifier notifier,
     ILogger<BracketService> logger) : IBracketService
 {
     public async Task<List<MatchDto>> GenerateBracketAsync(int tournamentId)
