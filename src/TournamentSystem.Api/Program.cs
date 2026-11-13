@@ -29,6 +29,10 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITournamentService, TournamentService>();
 builder.Services.AddScoped<IBracketService, BracketService>();
 
+builder.Services.AddSingleton<EloCalculatorService>();
+builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+
 const string ReactCorsPolicy = "ReactClientPolicy";
 builder.Services.AddCors(options =>
 {
