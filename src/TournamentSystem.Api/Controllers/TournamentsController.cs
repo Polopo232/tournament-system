@@ -16,7 +16,8 @@ namespace TournamentSystem.Api.Controllers;
 [Produces("application/json")]
 public class TournamentsController(
     ITournamentService tournamentService,
-    IBracketService bracketService) : ControllerBase
+    IBracketService bracketService,
+    IRatingService ratingService) : ControllerBase
 {
     /// <summary>
     /// Tagastab turniiride nimekirja koos otsingu, filtreerimise, sorteerimise ja lehekülgedeks jaotamisega.
@@ -167,5 +168,34 @@ public class TournamentsController(
     {
         var nextMatches = await bracketService.GenerateNextRoundAsync(id);
         return Ok(nextMatches);
+    }
+
+    /// <summary>
+    /// Tagastab aktiivsed turniirid, kus jooksva vooru kõik mängud on lõpetatud ja Elo ootab ümberarvutamist.
+    /// </summary>
+    /// <response code="200">Lõppenud voorudega turniiride nimekiri.</response>
+    [HttpGet("rounds-completed")]
+    [Authorize(Roles = "Service,Admin")]
+    [ProducesResponseType(typeof(List<CompletedRoundTournamentDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<CompletedRoundTournamentDto>>> GetCompletedRounds()
+    {
+        var list = await ratingService.GetCompletedRoundsTournamentsAsync();
+        return Ok(list);
+    }
+
+    /// <summary>
+    /// Arvutab turniiri lõpetatud mängude põhjal osalejate Elo-reitingud ümber ja salvestab ajalukku.
+    /// </summary>
+    /// <param name="id">Turniiri unikaalne ID.</param>
+    /// <response code="204">Elo-reitingud edukalt ümber arvutatud.</response>
+    /// <response code="404">Turniiri ei leitud.</response>
+    [HttpPost("{id}/ratings/recalculate")]
+    [Authorize(Roles = "Service,Organizer,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RecalculateRatings(int id)
+    {
+        await ratingService.RecalculateTournamentRatingsAsync(id);
+        return NoContent();
     }
 }
