@@ -9,6 +9,7 @@ namespace TournamentSystem.Application.Services;
 public class MatchService(
     IMatchRepository matches,
     ITournamentRepository tournaments,
+    ITournamentNotifier notifier,
     ILogger<MatchService> logger) : IMatchService
 {
     public async Task<MatchResultResponseDto> SubmitResultAsync(int matchId, SubmitMatchResultDto dto)
@@ -59,13 +60,17 @@ public class MatchService(
             .Where(m => m.Round == updatedTournament.CurrentRound)
             .All(m => m.Status == MatchStatus.Completed);
 
+        var matchDto = MatchDto.FromEntity(match);
+
+        await notifier.NotifyMatchResultSavedAsync(match.TournamentId, matchDto);
+
         logger.LogInformation(
             "Mängu {MatchId} tulemus salvestatud ({Score1}:{Score2}). Voor lõppenud: {IsRoundCompleted}",
             matchId, dto.Player1Score, dto.Player2Score, isRoundCompleted);
 
         return new MatchResultResponseDto
         {
-            Match = MatchDto.FromEntity(match),
+            Match = matchDto,
             IsRoundCompleted = isRoundCompleted
         };
     }

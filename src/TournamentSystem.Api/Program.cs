@@ -1,11 +1,13 @@
-using System.Reflection;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
+using System.Reflection;
+using System.Text;
+using TournamentSystem.Api.Hubs;
 using TournamentSystem.Api.Middleware;
+using TournamentSystem.Api.Services;
 using TournamentSystem.Application.Interfaces;
 using TournamentSystem.Application.Services;
 using TournamentSystem.Infrastructure.Data;
@@ -33,10 +35,13 @@ builder.Services.AddSingleton<EloCalculatorService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
 
+builder.Services.AddSignalR();
+builder.Services.AddScoped<ITournamentNotifier, SignalRTournamentNotifier>();
+
 const string ReactCorsPolicy = "ReactClientPolicy";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(ReactCorsPolicy, policy =>
+    options.AddPolicy("FrontendPolicy", policy =>
     {
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
@@ -56,17 +61,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
 
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
-                var token = context.Request.Query["access_token"];
-                if (!string.IsNullOrEmpty(token) && context.Request.Path.StartsWithSegments("/ws"))
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/ws/tournament"))
                 {
-                    context.Token = token;
+                    context.Token = accessToken;
                 }
 
                 return Task.CompletedTask;
@@ -154,4 +162,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+app.MapHub<TournamentHub>("/ws/tournament");
 app.Run();
