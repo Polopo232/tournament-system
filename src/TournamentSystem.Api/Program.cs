@@ -39,11 +39,12 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<ITournamentNotifier, SignalRTournamentNotifier>();
 
 const string ReactCorsPolicy = "ReactClientPolicy";
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -147,6 +148,8 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 
+app.UseCors("FrontendPolicy");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -156,11 +159,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-app.UseCors(ReactCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 
+app.MapControllers();
 app.MapHub<TournamentHub>("/ws/tournament");
+
 app.Run();
