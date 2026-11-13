@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
+import { Link } from 'react-router-dom';
 
 export function TournamentsPage() {
     const [tournaments, setTournaments] = useState([]);
@@ -59,7 +60,6 @@ export function TournamentsPage() {
         <div style={{ maxWidth: 1000, margin: '24px auto', padding: '0 16px' }}>
             <h1>Turniirid</h1>
 
-            {/* Otsing, filtrid ja sorteerimine */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
                 <input
                     type="text"
@@ -129,7 +129,11 @@ export function TournamentsPage() {
                                     <span style={{ fontSize: 12, color: '#555' }}>{t.status}</span>
                                 </div>
 
-                                <h3 style={{ margin: '4px 0' }}>{t.name}</h3>
+                                <h3 style={{ margin: '4px 0' }}>
+                                    <Link to={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: '#2563eb' }}>
+                                        {t.name}
+                                    </Link>
+                                </h3>
                                 <p style={{ margin: 0, fontSize: 14, color: '#666' }}>Formaat: {t.format}</p>
                                 <p style={{ margin: 0, fontSize: 14 }}>
                                     Osalejad: <strong>{count} / {t.maxParticipants}</strong>
@@ -143,7 +147,6 @@ export function TournamentsPage() {
                 </div>
             )}
 
-            {/* Lehekülgede jaotamine (Pagination) */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 28 }}>
                 <button
                     disabled={page <= 1}

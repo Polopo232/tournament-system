@@ -3,6 +3,8 @@ import { clearAuthSession, getStoredUser } from './api/client';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { TournamentsPage } from './pages/TournamentsPage';
+import { TournamentDetailPage } from './pages/TournamentDetailPage';
+import { PlayerProfilePage } from './pages/PlayerProfilePage';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -46,6 +48,8 @@ export function App() {
             <Routes>
                 <Route path="/" element={<Navigate to="/tournaments" replace />} />
                 <Route path="/tournaments" element={<TournamentsPage />} />
+                <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
+                <Route path="/players/:id" element={<PlayerProfilePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
             </Routes>
