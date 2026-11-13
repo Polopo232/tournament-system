@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
 import { apiClient, getStoredToken, getStoredUser } from '../api/client';
+import {
+    formatDiscipline,
+    formatMatchStatus,
+    formatStatus,
+    formatTournamentFormat,
+    getStatusBadgeClass,
+} from '../utils/formatters';
 
 export function TournamentDetailPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const tournamentId = Number(id);
     const user = getStoredUser();
 
     const [tournament, setTournament] = useState(null);
+    const [participantsList, setParticipantsList] = useState([]);
+    const [registeredOverride, setRegisteredOverride] = useState(false);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [actionMsg, setActionMsg] = useState(null);
@@ -18,11 +29,45 @@ export function TournamentDetailPage() {
     const [score2, setScore2] = useState(0);
     const [submittingScore, setSubmittingScore] = useState(false);
 
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [editForm, setEditForm] = useState({
+        name: '',
+        game: 'CS2',
+        description: '',
+        format: 'SingleElimination',
+        maxPlayers: 8,
+        startDate: '',
+    });
+    const [savingEdit, setSavingEdit] = useState(false);
+
     const loadTournament = useCallback(async () => {
         try {
             setError(null);
             const response = await apiClient.get(`/api/tournaments/${tournamentId}`);
-            setTournament(response.data);
+            const data = response.data;
+            setTournament(data);
+
+            let foundParticipants =
+                data.participants ||
+                data.registrations ||
+                data.players ||
+                data.registeredPlayers ||
+                [];
+
+            if (foundParticipants.length === 0) {
+                try {
+                    const regRes = await apiClient.get(`/api/tournaments/${tournamentId}/registrations`);
+                    if (Array.isArray(regRes.data)) foundParticipants = regRes.data;
+                } catch {
+                    try {
+                        const partRes = await apiClient.get(`/api/tournaments/${tournamentId}/participants`);
+                        if (Array.isArray(partRes.data)) foundParticipants = partRes.data;
+                    } catch {
+                    }
+                }
+            }
+
+            setParticipantsList(foundParticipants);
         } catch {
             setError('Turniiri andmete laadimine ebaõnnestus.');
         } finally {
@@ -81,11 +126,32 @@ export function TournamentDetailPage() {
         try {
             setActionMsg(null);
             setError(null);
-            await apiClient.post(`/api/tournaments/${tournamentId}/registrations`);
+            try {
+                await apiClient.post(`/api/tournaments/${tournamentId}/register`);
+            } catch (firstErr) {
+                if (firstErr.response?.status === 404 || firstErr.response?.status === 405) {
+                    await apiClient.post(`/api/tournaments/${tournamentId}/registrations`);
+                } else {
+                    throw firstErr;
+                }
+            }
+            setRegisteredOverride(true);
             setActionMsg('Oled edukalt turniirile registreeritud!');
             await loadTournament();
         } catch (err) {
-            setError(err.response?.data?.detail || 'Registreerimine ebaõnnestus.');
+            const msg =
+                err.response?.data?.detail ||
+                err.response?.data?.message ||
+                err.response?.data?.title ||
+                'Registreerimine ebaõnnestus.';
+
+            if (msg.toLowerCase().includes('already registered')) {
+                setRegisteredOverride(true);
+                setActionMsg('Oled juba sellele turniirile registreeritud!');
+                await loadTournament();
+            } else {
+                setError(msg);
+            }
         }
     };
 
@@ -93,11 +159,78 @@ export function TournamentDetailPage() {
         try {
             setActionMsg(null);
             setError(null);
-            await apiClient.post(`/api/tournaments/${tournamentId}/bracket`);
-            setActionMsg('Turniiritabel on edukalt loodud!');
+            try {
+                await apiClient.post(`/api/tournaments/${tournamentId}/bracket`);
+            } catch (firstErr) {
+                if (firstErr.response?.status === 404 || firstErr.response?.status === 405) {
+                    await apiClient.post(`/api/tournaments/${tournamentId}/start`);
+                } else {
+                    throw firstErr;
+                }
+            }
+            setActionMsg('Turniiritabel on edukalt genereeritud!');
             await loadTournament();
         } catch (err) {
-            setError(err.response?.data?.detail || 'Turniiritabeli loomine ebaõnnestus.');
+            const msg =
+                err.response?.data?.detail ||
+                err.response?.data?.message ||
+                'Turniiritabeli loomine ebaõnnestus.';
+            setError(msg);
+        }
+    };
+
+    const openEditModal = () => {
+        if (!tournament) return;
+        const rawGame = tournament.game || tournament.discipline || 'CS2';
+        const rawMax = tournament.maxPlayers ?? tournament.maxParticipants ?? 8;
+        const isoDate = tournament.startDate
+            ? new Date(tournament.startDate).toISOString().slice(0, 16)
+            : '';
+
+        setEditForm({
+            name: tournament.name || '',
+            game: rawGame,
+            description: tournament.description || '',
+            format: tournament.format || 'SingleElimination',
+            maxPlayers: rawMax,
+            startDate: isoDate,
+        });
+        setIsEditOpen(true);
+    };
+
+    const handleUpdateTournament = async (e) => {
+        e.preventDefault();
+        try {
+            setSavingEdit(true);
+            setError(null);
+            await apiClient.put(`/api/tournaments/${tournamentId}`, {
+                name: editForm.name.trim(),
+                game: editForm.game,
+                discipline: editForm.game,
+                description: editForm.description.trim(),
+                format: editForm.format,
+                maxPlayers: Number(editForm.maxPlayers),
+                maxParticipants: Number(editForm.maxPlayers),
+                startDate: new Date(editForm.startDate).toISOString(),
+            });
+            setIsEditOpen(false);
+            setActionMsg('Turniiri andmed on uuendatud!');
+            await loadTournament();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Turniiri muutmine ebaõnnestus.');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    const handleDeleteTournament = async () => {
+        if (!window.confirm('Kas oled kindel, et soovid selle turniiri kustutada?')) return;
+        try {
+            setError(null);
+            await apiClient.delete(`/api/tournaments/${tournamentId}`);
+            navigate('/tournaments');
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Turniiri kustutamine ebaõnnestus.');
         }
     };
 
@@ -127,13 +260,53 @@ export function TournamentDetailPage() {
         }
     };
 
-    if (loading) return <p style={{ padding: 24 }}>Laadin turniiri...</p>;
-    if (!tournament) return <p style={{ padding: 24 }}>Turniiri ei leitud.</p>;
+    if (loading) {
+        return (
+            <div className="container">
+                <p style={{ color: 'var(--text-muted)' }}>Laadin turniiri andmeid...</p>
+            </div>
+        );
+    }
 
-    const participants = tournament.participants || tournament.registrations || [];
+    if (!tournament) {
+        return (
+            <div className="container">
+                <div className="alert-error">Turniiri ei leitud.</div>
+                <Link to="/tournaments" className="btn btn-outline">
+                    Tagasi turniiride nimekirja
+                </Link>
+            </div>
+        );
+    }
+
+    const rawGame = tournament.game || tournament.discipline;
+    const maxP = tournament.maxPlayers ?? tournament.maxParticipants ?? 0;
+    const participants = participantsList;
+    const displayCount = Math.max(
+        participants.length,
+        tournament.currentParticipantsCount ??
+        tournament.participantsCount ??
+        tournament.registeredCount ??
+        0
+    );
     const matches = tournament.matches || [];
-    const isOrganizer = user?.role === 'Organizer' || user?.role === 'Admin';
-    const isPlayer = user?.role === 'Player';
+
+    const role = (user?.role || '').toLowerCase();
+    const isAdminOrOrganizer = role === 'organizer' || role === 'admin';
+    const isPlayer = role === 'player';
+
+    const isOpenForRegistration =
+        tournament.status === 'Registration' || tournament.status === 'Open';
+
+    const alreadyRegistered =
+        registeredOverride ||
+        (user &&
+            participants.some(
+                (p) =>
+                    Number(p.playerId || p.userId || p.id) === Number(user.id) ||
+                    (p.username && p.username.toLowerCase() === user.username?.toLowerCase()) ||
+                    (p.playerName && p.playerName.toLowerCase() === user.username?.toLowerCase())
+            ));
 
     const roundsMap = matches.reduce((acc, match) => {
         const r = match.round || 1;
@@ -146,186 +319,328 @@ export function TournamentDetailPage() {
         .sort((a, b) => a - b);
 
     return (
-        <div style={{ maxWidth: 1050, margin: '24px auto', padding: '0 16px' }}>
-            <Link to="/tournaments">← Tagasi turniiride nimekirja</Link>
+        <div className="container">
+            <Link to="/tournaments" className="back-link">
+                ← Tagasi turniiride nimekirja
+            </Link>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <div>
-                    <h1 style={{ margin: '4px 0' }}>{tournament.name}</h1>
-                    <p style={{ margin: 0, color: '#555' }}>
-                        Ala: <strong>{tournament.discipline}</strong> | Formaat: <strong>{tournament.format}</strong> | Staatus: <strong>{tournament.status}</strong>
-                    </p>
+            <div className="panel">
+                <div className="page-header" style={{ marginBottom: 0 }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                            <span className="badge badge-discipline">{formatDiscipline(rawGame)}</span>
+                            <span className={getStatusBadgeClass(tournament.status)}>
+                {formatStatus(tournament.status)}
+              </span>
+                        </div>
+                        <h1 className="page-title">{tournament.name}</h1>
+                        {tournament.description && (
+                            <p className="page-subtitle" style={{ maxWidth: 680 }}>
+                                {tournament.description}
+                            </p>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                        {isPlayer && isOpenForRegistration && !alreadyRegistered && (
+                            <button onClick={handleRegister} className="btn btn-primary">
+                                Registreeru turniirile
+                            </button>
+                        )}
+
+                        {isPlayer && alreadyRegistered && (
+                            <span className="badge badge-open" style={{ padding: '8px 14px', fontSize: 13 }}>
+                ✓ Oled registreeritud
+              </span>
+                        )}
+
+                        {isAdminOrOrganizer && isOpenForRegistration && matches.length === 0 && (
+                            <button onClick={handleGenerateBracket} className="btn btn-success">
+                                Genereeri turniiritabel
+                            </button>
+                        )}
+
+                        {isAdminOrOrganizer && (
+                            <>
+                                <button onClick={openEditModal} className="btn btn-outline">
+                                    Muuda turniiri
+                                </button>
+                                <button
+                                    onClick={handleDeleteTournament}
+                                    className="btn"
+                                    style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+                                >
+                                    Kustuta
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10 }}>
-                    {isPlayer && tournament.status === 'Open' && (
-                        <button onClick={handleRegister} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                            Registreeru turniirile
-                        </button>
-                    )}
+                <div className="info-grid">
+                    <div className="info-box">
+                        <div className="info-box-label">Mäng / Spordiala</div>
+                        <div className="info-box-value">{formatDiscipline(rawGame)}</div>
+                    </div>
 
-                    {isOrganizer && tournament.status === 'Open' && matches.length === 0 && (
-                        <button onClick={handleGenerateBracket} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                            Genereeri turniiritabel
-                        </button>
-                    )}
+                    <div className="info-box">
+                        <div className="info-box-label">Turniiri formaat</div>
+                        <div className="info-box-value">{formatTournamentFormat(tournament.format)}</div>
+                    </div>
+
+                    <div className="info-box">
+                        <div className="info-box-label">Osalejate arv</div>
+                        <div className="info-box-value">
+                            {displayCount} / {maxP} mängijat
+                        </div>
+                    </div>
+
+                    <div className="info-box">
+                        <div className="info-box-label">Alguskuupäev</div>
+                        <div className="info-box-value">
+                            {new Date(tournament.startDate).toLocaleDateString('et-EE', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {actionMsg && (
-                <div style={{ background: '#dcfce7', color: '#166534', padding: 10, borderRadius: 6, marginTop: 16 }}>
-                    {actionMsg}
-                </div>
-            )}
+            {actionMsg && <div className="alert-success">{actionMsg}</div>}
+            {error && <div className="alert-error">{error}</div>}
 
-            {error && (
-                <div style={{ background: '#fee2e2', color: '#991b1b', padding: 10, borderRadius: 6, marginTop: 16 }}>
-                    {error}
-                </div>
-            )}
+            <div className="panel">
+                <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>
+                    Registreerunud osalejad ({displayCount} / {maxP})
+                </h2>
 
-            <section style={{ marginTop: 28 }}>
-                <h2>Osalejad ({participants.length} / {tournament.maxParticipants})</h2>
                 {participants.length === 0 ? (
-                    <p>Osalejaid pole veel registreerunud.</p>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                        Osalejaid pole veel registreerunud.
+                    </p>
                 ) : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <div className="participants-list">
                         {participants.map((p) => {
                             const playerId = p.playerId || p.userId || p.id;
                             const playerName = p.username || p.playerName || `Mängija #${playerId}`;
-                            const elo = p.eloRating ?? p.rating;
+                            const elo = p.rating ?? p.eloRating;
+
                             return (
-                                <Link
-                                    key={playerId}
-                                    to={`/players/${playerId}`}
-                                    style={{
-                                        padding: '6px 12px',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: 6,
-                                        textDecoration: 'none',
-                                        color: '#111',
-                                        background: '#f9fafb',
-                                    }}
-                                >
-                                    <strong>{playerName}</strong> {elo !== undefined ? `(Elo: ${elo})` : ''}
+                                <Link key={playerId} to={`/players/${playerId}`} className="participant-chip">
+                                    <span>{playerName}</span>
+                                    {elo !== undefined && <span className="elo-tag">Elo {elo}</span>}
                                 </Link>
                             );
                         })}
                     </div>
                 )}
-            </section>
+            </div>
 
-            <section style={{ marginTop: 32 }}>
-                <h2>Turniiritabel</h2>
+            <div className="panel">
+                <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Turniiritabel</h2>
+
                 {roundNumbers.length === 0 ? (
-                    <p>Turniiritabel pole veel genereeritud.</p>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                        Turniiritabel pole veel genereeritud.
+                    </p>
                 ) : (
-                    <div style={{ display: 'flex', gap: 20, overflowX: 'auto', paddingBottom: 12 }}>
+                    <div className="bracket-scroll">
                         {roundNumbers.map((roundNum) => (
-                            <div
-                                key={roundNum}
-                                style={{ minWidth: 280, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}
-                            >
-                                <h3 style={{ marginTop: 0 }}>Voor {roundNum}</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    {roundsMap[roundNum].map((m) => (
-                                        <div
-                                            key={m.id}
-                                            style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: 12 }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <div key={roundNum} className="round-column">
+                                <h3 className="round-title">Voor {roundNum}</h3>
+
+                                {roundsMap[roundNum].map((m) => {
+                                    const p1Won = m.status === 'Completed' && m.player1Score > m.player2Score;
+                                    const p2Won = m.status === 'Completed' && m.player2Score > m.player1Score;
+
+                                    return (
+                                        <div key={m.id} className="match-card">
+                                            <div className="match-row">
                         <span>
                           {m.player1Id ? (
-                              <Link to={`/players/${m.player1Id}`}>{m.player1Name || `Mängija #${m.player1Id}`}</Link>
+                              <Link to={`/players/${m.player1Id}`} style={{ fontWeight: p1Won ? 700 : 500 }}>
+                                  {m.player1Name || `Mängija #${m.player1Id}`}
+                              </Link>
                           ) : (
-                              'TBD'
+                              <span style={{ color: 'var(--text-muted)' }}>Selgumisel</span>
                           )}
                         </span>
-                                                <strong>{m.player1Score ?? '-'}</strong>
+                                                <span className={`match-score ${p1Won ? 'winner' : ''}`}>
+                          {m.player1Score ?? '-'}
+                        </span>
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                            <div className="match-row">
                         <span>
                           {m.player2Id ? (
-                              <Link to={`/players/${m.player2Id}`}>{m.player2Name || `Mängija #${m.player2Id}`}</Link>
+                              <Link to={`/players/${m.player2Id}`} style={{ fontWeight: p2Won ? 700 : 500 }}>
+                                  {m.player2Name || `Mängija #${m.player2Id}`}
+                              </Link>
                           ) : (
-                              <em>Vaba voor (Bye)</em>
+                              <em style={{ color: 'var(--text-muted)' }}>Vaba voor (Bye)</em>
                           )}
                         </span>
-                                                <strong>{m.player2Score ?? '-'}</strong>
+                                                <span className={`match-score ${p2Won ? 'winner' : ''}`}>
+                          {m.player2Score ?? '-'}
+                        </span>
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#64748b' }}>
-                                                <span>Staatus: {m.status}</span>
-                                                {isOrganizer && m.status !== 'Completed' && m.player2Id && (
+                                            <div className="match-footer">
+                                                <span>Staatus: {formatMatchStatus(m.status)}</span>
+                                                {isAdminOrOrganizer && m.status !== 'Completed' && m.player2Id && (
                                                     <button
                                                         onClick={() => openScoreModal(m)}
-                                                        style={{ padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
+                                                        className="btn btn-primary btn-sm"
                                                     >
                                                         Sisesta tulemus
                                                     </button>
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    );
+                                })}
                             </div>
                         ))}
                     </div>
                 )}
-            </section>
+            </div>
+
+            {isEditOpen && (
+                <div className="modal-backdrop">
+                    <div className="modal-box" style={{ maxWidth: 480 }}>
+                        <h3 style={{ margin: '0 0 16px', fontSize: 19 }}>Muuda turniiri</h3>
+
+                        <form onSubmit={handleUpdateTournament}>
+                            <div className="form-group">
+                                <label className="form-label">Turniiri nimi</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="input"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Mäng / Spordiala</label>
+                                <select
+                                    className="select"
+                                    value={editForm.game}
+                                    onChange={(e) => setEditForm({ ...editForm, game: e.target.value })}
+                                >
+                                    <option value="CS2">Counter-Strike 2</option>
+                                    <option value="Dota2">Dota 2</option>
+                                    <option value="Chess">Male</option>
+                                    <option value="TableTennis">Lauatennis</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Formaat</label>
+                                <select
+                                    className="select"
+                                    value={editForm.format}
+                                    onChange={(e) => setEditForm({ ...editForm, format: e.target.value })}
+                                >
+                                    <option value="SingleElimination">Ühe väljalangemisega</option>
+                                    <option value="RoundRobin">Kõik kõigiga</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Maksimaalne osalejate arv</label>
+                                <input
+                                    type="number"
+                                    min="2"
+                                    max="128"
+                                    className="input"
+                                    value={editForm.maxPlayers}
+                                    onChange={(e) => setEditForm({ ...editForm, maxPlayers: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Algusaeg</label>
+                                <input
+                                    type="datetime-local"
+                                    className="input"
+                                    value={editForm.startDate}
+                                    onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Kirjeldus</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={editForm.description}
+                                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                                <button type="button" onClick={() => setIsEditOpen(false)} className="btn btn-outline">
+                                    Tühista
+                                </button>
+                                <button type="submit" disabled={savingEdit} className="btn btn-primary">
+                                    {savingEdit ? 'Salvestan...' : 'Salvesta muudatused'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {selectedMatch && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.45)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 50,
-                    }}
-                >
-                    <div style={{ background: '#fff', padding: 24, borderRadius: 8, width: 360 }}>
-                        <h3 style={{ marginTop: 0 }}>Sisesta mängu tulemus</h3>
+                <div className="modal-backdrop">
+                    <div className="modal-box">
+                        <h3 style={{ margin: '0 0 16px', fontSize: 19 }}>Sisesta mängu tulemus</h3>
+
                         <form onSubmit={handleSaveResult}>
-                            <div style={{ marginBottom: 12 }}>
-                                <label style={{ display: 'block', marginBottom: 4 }}>
-                                    {selectedMatch.player1Name || `Mängija #${selectedMatch.player1Id}`} skoor:
+                            <div className="form-group">
+                                <label className="form-label">
+                                    {selectedMatch.player1Name || `Mängija #${selectedMatch.player1Id}`} skoor
                                 </label>
                                 <input
                                     type="number"
                                     min="0"
+                                    className="input"
                                     value={score1}
                                     onChange={(e) => setScore1(e.target.value)}
-                                    style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
                                 />
                             </div>
 
-                            <div style={{ marginBottom: 16 }}>
-                                <label style={{ display: 'block', marginBottom: 4 }}>
-                                    {selectedMatch.player2Name || `Mängija #${selectedMatch.player2Id}`} skoor:
+                            <div className="form-group" style={{ marginBottom: 22 }}>
+                                <label className="form-label">
+                                    {selectedMatch.player2Name || `Mängija #${selectedMatch.player2Id}`} skoor
                                 </label>
                                 <input
                                     type="number"
                                     min="0"
+                                    className="input"
                                     value={score2}
                                     onChange={(e) => setScore2(e.target.value)}
-                                    style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <button type="button" onClick={() => setSelectedMatch(null)} style={{ padding: '8px 12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedMatch(null)}
+                                    className="btn btn-outline"
+                                >
                                     Tühista
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={submittingScore}
-                                    style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                                    className="btn btn-primary"
                                 >
-                                    {submittingScore ? 'Salvestan...' : 'Salvesta'}
+                                    {submittingScore ? 'Salvestan...' : 'Salvesta tulemus'}
                                 </button>
                             </div>
                         </form>

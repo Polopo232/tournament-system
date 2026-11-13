@@ -36,45 +36,45 @@ export function LoginPage() {
     };
 
     return (
-        <div style={{ maxWidth: 400, margin: '40px auto', padding: 24, border: '1px solid #ddd', borderRadius: 8 }}>
-            <h2>Logi sisse</h2>
+        <div className="auth-wrapper">
+            <div className="auth-card">
+                <h1 className="auth-title">Tere tulemast tagasi</h1>
+                <p className="auth-subtitle">Logi sisse, et liituda turniiridega või hallata mänge</p>
 
-            {error && (
-                <div style={{ background: '#fee2e2', color: '#991b1b', padding: 10, borderRadius: 6, marginBottom: 16 }}>
-                    {error}
+                {error && <div className="alert-error">{error}</div>}
+
+                <form onSubmit={handleSubmit} noValidate>
+                    <div className="form-group">
+                        <label className="form-label">Kasutajanimi</label>
+                        <input
+                            type="text"
+                            className="input"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="nt. player1 või organizer"
+                        />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 22 }}>
+                        <label className="form-label">Parool</label>
+                        <input
+                            type="password"
+                            className="input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', height: 42 }}>
+                        {loading ? 'Sisselogimine...' : 'Logi sisse'}
+                    </button>
+                </form>
+
+                <div className="auth-footer">
+                    Pole veel kontot? <Link to="/register" style={{ fontWeight: 600 }}>Loo uus konto</Link>
                 </div>
-            )}
-
-            <form onSubmit={handleSubmit} noValidate>
-                <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>Kasutajanimi</label>
-                    <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="nt. player1 või organizer"
-                        style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>Parool</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: 10, cursor: 'pointer' }}>
-                    {loading ? 'Sisselogimine...' : 'Logi sisse'}
-                </button>
-            </form>
-
-            <p style={{ marginTop: 16, textAlign: 'center' }}>
-                Pole veel kontot? <Link to="/register">Registreeru</Link>
-            </p>
+            </div>
         </div>
     );
 }

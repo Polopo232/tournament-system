@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { apiClient } from '../api/client';
+import { apiClient, getStoredUser } from '../api/client';
 
 export function PlayerProfilePage() {
     const { id } = useParams();
@@ -23,8 +23,17 @@ export function PlayerProfilePage() {
                     setPlayerInfo(data);
                     setHistory(data.history || data.items || []);
                 }
-            } catch {
-                setError('Mängija Elo ajaloo laadimine ebaõnnestus.');
+            } catch (err) {
+                const currentUser = getStoredUser();
+                if (currentUser && Number(currentUser.id) === Number(id)) {
+                    setPlayerInfo({
+                        username: currentUser.username,
+                        rating: 1200,
+                    });
+                    setHistory([]);
+                } else {
+                    setError(err.response?.data?.detail || 'Mängija profiili ei leitud.');
+                }
             } finally {
                 setLoading(false);
             }
@@ -34,79 +43,100 @@ export function PlayerProfilePage() {
     }, [id]);
 
     const currentElo =
+        playerInfo?.rating ??
         playerInfo?.eloRating ??
-        (history.length > 0 ? history[history.length - 1].newRating ?? history[history.length - 1].ratingAfter : 1200);
+        (history.length > 0
+            ? history[history.length - 1].newRating ?? history[history.length - 1].ratingAfter
+            : 1200);
 
     const playerName = playerInfo?.username || history[0]?.playerName || `Mängija #${id}`;
 
     return (
-        <div style={{ maxWidth: 800, margin: '24px auto', padding: '0 16px' }}>
-            <Link to="/tournaments">← Tagasi turniiride juurde</Link>
+        <div className="container">
+            <Link to="/tournaments" className="back-link">
+                ← Tagasi turniiride juurde
+            </Link>
 
-            <div style={{ marginTop: 16, padding: 20, border: '1px solid #ddd', borderRadius: 8, background: '#f8fafc' }}>
-                <h1 style={{ margin: '0 0 8px 0' }}>{playerName}</h1>
-                <p style={{ margin: 0, fontSize: 18 }}>
-                    Praegune Elo-reiting: <strong>{currentElo}</strong>
-                </p>
+            <div
+                className="panel"
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 16,
+                }}
+            >
+                <div>
+          <span className="badge badge-discipline" style={{ marginBottom: 8 }}>
+            Mängija profiil
+          </span>
+                    <h1 className="page-title">{playerName}</h1>
+                </div>
+
+                <div className="info-box" style={{ minWidth: 180 }}>
+                    <div className="info-box-label">Praegune Elo-reiting</div>
+                    <div className="info-box-value" style={{ fontSize: 24, color: 'var(--primary)' }}>
+                        {currentElo}
+                    </div>
+                </div>
             </div>
 
-            <h2 style={{ marginTop: 28 }}>Elo-reitingu ajalugu</h2>
+            <div className="panel">
+                <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Elo-reitingu ajalugu</h2>
 
-            {error && (
-                <div style={{ background: '#fee2e2', color: '#991b1b', padding: 10, borderRadius: 6, marginBottom: 16 }}>
-                    {error}
-                </div>
-            )}
+                {error && <div className="alert-error">{error}</div>}
 
-            {loading ? (
-                <p>Laadin ajalugu...</p>
-            ) : history.length === 0 ? (
-                <p>Sellel mängijal pole veel Elo-reitingu muudatusi.</p>
-            ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
-                    <thead>
-                    <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                        <th style={{ padding: 10, border: '1px solid #cbd5e1' }}>Kuupäev</th>
-                        <th style={{ padding: 10, border: '1px solid #cbd5e1' }}>Vana Elo</th>
-                        <th style={{ padding: 10, border: '1px solid #cbd5e1' }}>Uus Elo</th>
-                        <th style={{ padding: 10, border: '1px solid #cbd5e1' }}>Muutus</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {history.map((item, idx) => {
-                        const oldR = item.oldRating ?? item.ratingBefore ?? '-';
-                        const newR = item.newRating ?? item.ratingAfter ?? '-';
-                        const diff =
-                            typeof oldR === 'number' && typeof newR === 'number'
-                                ? newR - oldR
-                                : item.change ?? 0;
-                        const dateStr = item.recordedAt || item.createdAt || item.date;
-
-                        return (
-                            <tr key={item.id || idx}>
-                                <td style={{ padding: 10, border: '1px solid #cbd5e1' }}>
-                                    {dateStr ? new Date(dateStr).toLocaleString('et-EE') : '-'}
-                                </td>
-                                <td style={{ padding: 10, border: '1px solid #cbd5e1' }}>{oldR}</td>
-                                <td style={{ padding: 10, border: '1px solid #cbd5e1' }}>
-                                    <strong>{newR}</strong>
-                                </td>
-                                <td
-                                    style={{
-                                        padding: 10,
-                                        border: '1px solid #cbd5e1',
-                                        color: diff >= 0 ? '#15803d' : '#b91c1c',
-                                        fontWeight: 'bold',
-                                    }}
-                                >
-                                    {diff >= 0 ? `+${diff}` : diff}
-                                </td>
+                {loading ? (
+                    <p style={{ color: 'var(--text-muted)' }}>Laadin ajalugu...</p>
+                ) : history.length === 0 ? (
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                        Sellel mängijal pole veel Elo-reitingu muudatusi.
+                    </p>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
+                            <tr>
+                                <th>Kuupäev</th>
+                                <th>Vana Elo</th>
+                                <th>Uus Elo</th>
+                                <th>Muutus</th>
                             </tr>
-                        );
-                    })}
-                    </tbody>
-                </table>
-            )}
+                            </thead>
+                            <tbody>
+                            {history.map((item, idx) => {
+                                const oldR = item.oldRating ?? item.ratingBefore ?? '-';
+                                const newR = item.newRating ?? item.ratingAfter ?? '-';
+                                const diff =
+                                    typeof oldR === 'number' && typeof newR === 'number'
+                                        ? newR - oldR
+                                        : item.change ?? 0;
+                                const dateStr = item.recordedAt || item.createdAt || item.date;
+
+                                return (
+                                    <tr key={item.id || idx}>
+                                        <td>{dateStr ? new Date(dateStr).toLocaleString('et-EE') : '-'}</td>
+                                        <td>{oldR}</td>
+                                        <td>
+                                            <strong>{newR}</strong>
+                                        </td>
+                                        <td
+                                            style={{
+                                                color: diff >= 0 ? 'var(--success)' : 'var(--danger)',
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            {diff >= 0 ? `+${diff}` : diff}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

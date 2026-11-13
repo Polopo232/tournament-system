@@ -5,10 +5,13 @@ import { RegisterPage } from './pages/RegisterPage';
 import { TournamentsPage } from './pages/TournamentsPage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { PlayerProfilePage } from './pages/PlayerProfilePage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
 
 function Navbar() {
     const navigate = useNavigate();
     const user = getStoredUser();
+    const isAdmin = (user?.role || '').toLowerCase() === 'admin';
+    const isPlayer = (user?.role || '').toLowerCase() === 'player';
 
     const handleLogout = () => {
         clearAuthSession();
@@ -16,28 +19,59 @@ function Navbar() {
     };
 
     return (
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #e5e7eb' }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <strong>Tournament System</strong>
-                <Link to="/tournaments">Turniirid</Link>
-            </div>
+        <header className="navbar">
+            <div className="navbar-inner">
+                <div className="navbar-left">
+                    <Link to="/tournaments" className="brand-logo">
+                        <span>ArenaHub</span>
+                        <span className="brand-tag">PRO</span>
+                    </Link>
+                    <Link to="/tournaments" className="nav-item">
+                        Turniirid
+                    </Link>
+                    {isAdmin && (
+                        <Link to="/admin/users" className="nav-item">
+                            Kasutajad
+                        </Link>
+                    )}
+                </div>
 
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                {user ? (
-                    <>
-                        <span>Tere, <strong>{user.username}</strong> ({user.role})</span>
-                        <button onClick={handleLogout} style={{ padding: '4px 10px', cursor: 'pointer' }}>
-                            Logi välja
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <Link to="/login">Logi sisse</Link>
-                        <Link to="/register">Registreeru</Link>
-                    </>
-                )}
+                <div className="navbar-right">
+                    {user ? (
+                        <>
+                            {isPlayer && user.id ? (
+                                <Link
+                                    to={`/players/${user.id}`}
+                                    className="user-chip"
+                                    style={{ textDecoration: 'none' }}
+                                    title="Ava minu profiil"
+                                >
+                                    <strong>{user.username}</strong>
+                                    <span className="role-badge">{user.role}</span>
+                                </Link>
+                            ) : (
+                                <div className="user-chip">
+                                    <strong>{user.username}</strong>
+                                    <span className="role-badge">{user.role}</span>
+                                </div>
+                            )}
+                            <button onClick={handleLogout} className="btn btn-dark-ghost btn-sm">
+                                Logi välja
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/login" className="nav-item">
+                                Logi sisse
+                            </Link>
+                            <Link to="/register" className="btn btn-primary btn-sm">
+                                Registreeru
+                            </Link>
+                        </>
+                    )}
+                </div>
             </div>
-        </nav>
+        </header>
     );
 }
 
@@ -50,6 +84,7 @@ export function App() {
                 <Route path="/tournaments" element={<TournamentsPage />} />
                 <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
                 <Route path="/players/:id" element={<PlayerProfilePage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
             </Routes>

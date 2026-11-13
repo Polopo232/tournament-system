@@ -50,55 +50,56 @@ export function RegisterPage() {
     };
 
     return (
-        <div style={{ maxWidth: 400, margin: '40px auto', padding: 24, border: '1px solid #ddd', borderRadius: 8 }}>
-            <h2>Loo konto</h2>
+        <div className="auth-wrapper">
+            <div className="auth-card">
+                <h1 className="auth-title">Loo mängijakonto</h1>
+                <p className="auth-subtitle">Alusta oma teekonda ja kogu Elo-reitingut</p>
 
-            {error && (
-                <div style={{ background: '#fee2e2', color: '#991b1b', padding: 10, borderRadius: 6, marginBottom: 16 }}>
-                    {error}
+                {error && <div className="alert-error">{error}</div>}
+
+                <form onSubmit={handleSubmit} noValidate>
+                    <div className="form-group">
+                        <label className="form-label">Kasutajanimi</label>
+                        <input
+                            type="text"
+                            className="input"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Vali unikaalne nimi"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">E-posti aadress</label>
+                        <input
+                            type="email"
+                            className="input"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="nimi@naide.ee"
+                        />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 22 }}>
+                        <label className="form-label">Parool (vähemalt 6 tähemärki)</label>
+                        <input
+                            type="password"
+                            className="input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', height: 42 }}>
+                        {loading ? 'Konto loomine...' : 'Registreeru'}
+                    </button>
+                </form>
+
+                <div className="auth-footer">
+                    Konto on juba olemas? <Link to="/login" style={{ fontWeight: 600 }}>Logi sisse</Link>
                 </div>
-            )}
-
-            <form onSubmit={handleSubmit} noValidate>
-                <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>Kasutajanimi</label>
-                    <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>E-post</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="nimi@naide.ee"
-                        style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>Parool</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        style={{ width: '100%', padding: 8, boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: 10, cursor: 'pointer' }}>
-                    {loading ? 'Registreerimine...' : 'Registreeru'}
-                </button>
-            </form>
-
-            <p style={{ marginTop: 16, textAlign: 'center' }}>
-                Konto on juba olemas? <Link to="/login">Logi sisse</Link>
-            </p>
+            </div>
         </div>
     );
 }
