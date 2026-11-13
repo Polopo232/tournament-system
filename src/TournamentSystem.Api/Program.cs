@@ -27,6 +27,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddScoped<ITournamentService, TournamentService>();
+builder.Services.AddScoped<IBracketService, BracketService>();
 
 const string ReactCorsPolicy = "ReactClientPolicy";
 builder.Services.AddCors(options =>
