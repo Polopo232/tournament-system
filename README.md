@@ -26,6 +26,8 @@ tournament-web/                     React web client (Vite)
 - **Global Error Handling:** Centralized `IExceptionHandler` returning standardized **RFC 7807 ProblemDetails** (`400`, `401`, `403`, `404`, `500`) and structured event logging (`ILogger`).
 - **CORS Configured:** Pre-configured for the React frontend (`http://localhost:5173`).
 - **Tournament CRUD & Querying:** Full support for search, filtering (`status`, `discipline`), sorting (`sortBy`), and pagination (`page`, `pageSize`).
+- **Bracket Generation & Seeding:** Automatic Elo-based player seeding and round generation for both `SingleElimination` and `RoundRobin` formats.
+- **Match Results & Elo Rating System:** Match score submission, round completion detection, classical Elo recalculation ($K = 32$), and player rating history tracking.
 
 ## Requirements
 
@@ -91,3 +93,10 @@ Once `TournamentSystem.Api` is running in Development mode, open:
 | `POST` | `/api/tournaments` | Create a new tournament | Organizer, Admin |
 | `PUT` | `/api/tournaments/{id}` | Update tournament details | Organizer, Admin |
 | `DELETE` | `/api/tournaments/{id}` | Delete a tournament | Organizer, Admin |
+| `POST` | `/api/tournaments/{id}/registrations` | Register current player for an open tournament | Player, Organizer, Admin |
+| `POST` | `/api/tournaments/{id}/bracket` | Generate initial bracket and round 1 pairings (Elo-seeded) | Organizer, Admin |
+| `POST` | `/api/tournaments/{id}/rounds/next` | Generate next round pairings or finish tournament | Service, Organizer, Admin |
+| `GET` | `/api/tournaments/rounds-completed` | Get active tournaments with completed rounds awaiting Elo recalculation | Service, Admin |
+| `POST` | `/api/tournaments/{id}/ratings/recalculate` | Recalculate Elo ratings for completed matches and save history | Service, Organizer, Admin |
+| `PUT` | `/api/matches/{id}/result` | Submit match score, determine winner, and check round completion | Organizer, Admin |
+| `GET` | `/api/players/{id}/rating-history` | Get chronological Elo rating history for a player | Public |
