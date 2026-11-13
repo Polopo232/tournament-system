@@ -37,3 +37,7 @@ export function getStoredUser() {
         return null;
     }
 }
+
+export function getStoredToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
