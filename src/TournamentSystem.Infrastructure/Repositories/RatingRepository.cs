@@ -7,7 +7,7 @@ namespace TournamentSystem.Infrastructure.Repositories;
 
 public class RatingRepository(AppDbContext db) : IRatingRepository
 {
-    public Task<List<RatingHistory>> GetByPlayerAsync(int playerId)
+    public Task<List<RatingHistory>> GetByPlayerIdAsync(int playerId)
     {
         return db.RatingHistory
             .Where(h => h.PlayerId == playerId)
