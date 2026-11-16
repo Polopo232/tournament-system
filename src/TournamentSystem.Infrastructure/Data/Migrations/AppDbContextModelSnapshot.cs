@@ -75,6 +75,33 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.ToTable("Matches");
                 });
 
+            modelBuilder.Entity("TournamentSystem.Domain.Entities.PlayerRating", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Game")
+                        .IsUnique();
+
+                    b.ToTable("PlayerRatings");
+                });
+
             modelBuilder.Entity("TournamentSystem.Domain.Entities.RatingHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -85,6 +112,11 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("MatchId")
                         .HasColumnType("int");
@@ -199,6 +231,11 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -207,9 +244,6 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("int");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -222,6 +256,9 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DisplayName")
+                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -263,6 +300,17 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Navigation("Tournament");
 
                     b.Navigation("Winner");
+                });
+
+            modelBuilder.Entity("TournamentSystem.Domain.Entities.PlayerRating", b =>
+                {
+                    b.HasOne("TournamentSystem.Domain.Entities.User", "User")
+                        .WithMany("Ratings")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TournamentSystem.Domain.Entities.RatingHistory", b =>
@@ -325,6 +373,8 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Navigation("OrganizedTournaments");
 
                     b.Navigation("RatingHistory");
+
+                    b.Navigation("Ratings");
 
                     b.Navigation("Registrations");
                 });

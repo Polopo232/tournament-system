@@ -14,7 +14,9 @@ public class UserRepository(AppDbContext db) : IUserRepository
 
     public Task<User?> GetByIdAsync(int id)
     {
-        return db.Users.FirstOrDefaultAsync(u => u.Id == id);
+        return db.Users
+            .Include(u => u.Ratings)
+            .FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public Task<User?> GetByUsernameAsync(string username)
@@ -25,6 +27,11 @@ public class UserRepository(AppDbContext db) : IUserRepository
     public Task<User?> GetByEmailAsync(string email)
     {
         return db.Users.FirstOrDefaultAsync(u => u.Email == email);
+    }
+
+    public Task<User?> GetByDisplayNameAsync(string displayName)
+    {
+        return db.Users.FirstOrDefaultAsync(u => u.DisplayName == displayName);
     }
 
     public Task<List<User>> GetByIdsAsync(List<int> ids)

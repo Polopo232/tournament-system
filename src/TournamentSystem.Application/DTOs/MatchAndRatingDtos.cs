@@ -69,41 +69,29 @@ public class CompletedRoundTournamentDto
 /// <summary>
 /// Mängija Elo-reitingu muudatuse kirje ajaloo jaoks.
 /// </summary>
+/// <summary>
+/// Mängija Elo-reitingu muudatuse kirje ajaloo jaoks.
+/// </summary>
 public class RatingHistoryDto
 {
-    /// <summary>
-    /// Kirje unikaalne ID.
-    /// </summary>
     /// <example>1</example>
     public int Id { get; set; }
 
-    /// <summary>
-    /// Mängu ID, mille järel reiting muutus.
-    /// </summary>
+    /// <example>Chess</example>
+    public string Game { get; set; } = string.Empty;
+
     /// <example>5</example>
     public int? MatchId { get; set; }
 
-    /// <summary>
-    /// Reiting enne mängu.
-    /// </summary>
     /// <example>1200</example>
     public int OldRating { get; set; }
 
-    /// <summary>
-    /// Reiting pärast mängu.
-    /// </summary>
     /// <example>1216</example>
     public int NewRating { get; set; }
 
-    /// <summary>
-    /// Reitingu muutus (+/-).
-    /// </summary>
     /// <example>16</example>
     public int RatingChange => NewRating - OldRating;
 
-    /// <summary>
-    /// Muudatuse kuupäev ja kellaaeg (UTC).
-    /// </summary>
     /// <example>2026-11-13T12:00:00Z</example>
     public DateTime CreatedAt { get; set; }
 
@@ -112,6 +100,7 @@ public class RatingHistoryDto
         return new RatingHistoryDto
         {
             Id = r.Id,
+            Game = r.Game,
             MatchId = r.MatchId,
             OldRating = r.OldRating,
             NewRating = r.NewRating,

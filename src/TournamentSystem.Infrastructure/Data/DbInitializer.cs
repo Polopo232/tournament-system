@@ -14,19 +14,35 @@ public static class DbInitializer
             return;
         }
 
-        var admin = CreateUser("admin", "Admin123!", UserRole.Admin, 1200);
-        var organizer = CreateUser("organizer", "Organizer123!", UserRole.Organizer, 1200);
-        var service = CreateUser("service", "Service123!", UserRole.Service, 1200);
+        var admin = CreateUser("admin", "Admin", "Admin123!", UserRole.Admin);
+        var organizer = CreateUser("organizer", "Korraldaja", "Organizer123!", UserRole.Organizer);
+        var service = CreateUser("service", "Teenus", "Service123!", UserRole.Service);
 
+        string[] nicks = ["Mari", "Jaan", "Kadri", "Rasmus", "Liis", "Oskar", "Anna", "Tiit"];
         int[] ratings = [1000, 1080, 1150, 1210, 1270, 1340, 1420, 1500];
+
         var players = new List<User>();
         for (int i = 0; i < ratings.Length; i++)
         {
-            players.Add(CreateUser($"player{i + 1}", "Player123!", UserRole.Player, ratings[i]));
+            players.Add(CreateUser($"player{i + 1}", nicks[i], "Player123!", UserRole.Player));
         }
 
         db.Users.AddRange(admin, organizer, service);
         db.Users.AddRange(players);
+
+        string[] games = ["Chess", "CS2", "Dota2", "TableTennis"];
+        for (int i = 0; i < players.Count; i++)
+        {
+            foreach (var game in games)
+            {
+                db.PlayerRatings.Add(new PlayerRating
+                {
+                    User = players[i],
+                    Game = game,
+                    Rating = ratings[i]
+                });
+            }
+        }
 
         // 1. Käimasolev maleturniir (1. voor mängitud -> Worker saab kohe 2. vooru luua)
         var t1 = new Tournament
@@ -168,15 +184,15 @@ public static class DbInitializer
         await db.SaveChangesAsync();
     }
 
-    private static User CreateUser(string username, string password, UserRole role, int rating)
+    private static User CreateUser(string username, string displayName, string password, UserRole role)
     {
         return new User
         {
             Username = username,
+            DisplayName = displayName,
             Email = $"{username}@tournament.local",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = role,
-            Rating = rating
+            Role = role
         };
     }
 

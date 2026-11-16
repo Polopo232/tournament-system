@@ -10,14 +10,21 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
 {
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
     {
-        if (await users.GetByUsernameAsync(dto.Username) != null || await users.GetByEmailAsync(dto.Email) != null)
+        if (await users.GetByUsernameAsync(dto.Username) != null
+            || await users.GetByEmailAsync(dto.Email) != null)
         {
             throw new ValidationException("Username or email is already taken.");
+        }
+
+        if (await users.GetByDisplayNameAsync(dto.DisplayName) != null)
+        {
+            throw new ValidationException("This nickname is already taken.");
         }
 
         var user = new User
         {
             Username = dto.Username,
+            DisplayName = dto.DisplayName,
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = UserRole.Player
@@ -26,7 +33,7 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
         users.Add(user);
         await users.SaveChangesAsync();
 
-        logger.LogInformation("Uus kasutaja registreeritud: {Username}", dto.Username);
+        logger.LogInformation("Uus kasutaja registreeritud: {Username} ({DisplayName})", dto.Username, dto.DisplayName);
         return CreateResponse(user);
     }
 

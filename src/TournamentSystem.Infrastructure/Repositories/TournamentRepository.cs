@@ -11,6 +11,8 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
     {
         return await db.Tournaments
             .Include(t => t.Registrations)
+                .ThenInclude(r => r.Player)
+                    .ThenInclude(p => p.Ratings)
             .ToListAsync();
     }
 
@@ -19,6 +21,7 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
         return await db.Tournaments
             .Include(t => t.Registrations)
                 .ThenInclude(r => r.Player)
+                    .ThenInclude(p => p.Ratings)
             .Include(t => t.Matches)
                 .ThenInclude(m => m.Player1)
             .Include(t => t.Matches)

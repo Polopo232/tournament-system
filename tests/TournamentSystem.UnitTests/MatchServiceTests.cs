@@ -19,8 +19,8 @@ public class MatchServiceTests
         var notifierMock = new Mock<ITournamentNotifier>();
         var loggerMock = new Mock<ILogger<MatchService>>();
 
-        var player1 = new User { Id = 1, Username = "player1", Rating = 1200 };
-        var player2 = new User { Id = 2, Username = "player2", Rating = 1200 };
+        var player1 = new User { Id = 1, Username = "player1", DisplayName = "Mari" };
+        var player2 = new User { Id = 2, Username = "player2", DisplayName = "Jaan" };
         var match = new Match
         {
             Id = 10,

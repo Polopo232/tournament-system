@@ -16,6 +16,7 @@ public class TokenService(IConfiguration configuration) : ITokenService
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
+            new("displayName", user.DisplayName),
             new(ClaimTypes.Role, user.Role.ToString())
         };
 

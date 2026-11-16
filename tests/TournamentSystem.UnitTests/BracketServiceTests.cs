@@ -43,7 +43,8 @@ public class BracketServiceTests
             {
                 Id = i,
                 Username = $"player{i}",
-                Rating = 1000 + i * 100 // player 4 has highest rating (1400), player 1 has lowest (1100)
+                DisplayName = $"Nick{i}",
+                Ratings = { new PlayerRating { Game = "Chess", Rating = 1000 + i * 100 } }
             };
             tournament.Registrations.Add(new Registration
             {

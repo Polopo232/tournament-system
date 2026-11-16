@@ -28,7 +28,6 @@ public class RatingService(
                 .Where(m => m.Round == fullTournament.CurrentRound)
                 .ToList();
 
-            // Kõik vooru mängud on mängitud JA vähemalt ühel mängul pole Elo veel ümber arvutatud
             if (currentRoundMatches.Count > 0 &&
                 currentRoundMatches.All(m => m.Status == MatchStatus.Completed) &&
                 currentRoundMatches.Any(m => !m.RatingsUpdated && m.Player2Id != null))
@@ -56,6 +55,18 @@ public class RatingService(
             .ThenBy(m => m.Id)
             .ToList();
 
+        if (matchesToProcess.Count == 0)
+        {
+            return;
+        }
+
+        var playerIds = matchesToProcess
+            .SelectMany(m => new[] { m.Player1Id, m.Player2Id })
+            .OfType<int>()
+            .ToList();
+
+        var ratingMap = await ratings.GetOrCreateForPlayersAsync(playerIds, tournament.Game);
+
         foreach (var match in matchesToProcess)
         {
             if (match.Player2Id == null)
@@ -64,50 +75,52 @@ public class RatingService(
                 continue;
             }
 
-            var p1 = await users.GetByIdAsync(match.Player1Id)
-                ?? throw new NotFoundException($"Player {match.Player1Id} not found.");
-            var p2 = await users.GetByIdAsync(match.Player2Id.Value)
-                ?? throw new NotFoundException($"Player {match.Player2Id.Value} not found.");
+            int p1Id = match.Player1Id;
+            int p2Id = match.Player2Id.Value;
 
-            double p1Score = match.WinnerId == p1.Id ? 1.0 :
-                             match.WinnerId == p2.Id ? 0.0 : 0.5;
+            var r1 = ratingMap[p1Id];
+            var r2 = ratingMap[p2Id];
 
-            int oldRating1 = p1.Rating;
-            int oldRating2 = p2.Rating;
+            double p1Score = match.WinnerId == p1Id ? 1.0 :
+                             match.WinnerId == p2Id ? 0.0 : 0.5;
 
-            var (newRating1, newRating2) = eloCalculator.CalculateNewRatings(oldRating1, oldRating2, p1Score);
+            int old1 = r1.Rating;
+            int old2 = r2.Rating;
 
-            p1.Rating = newRating1;
-            p2.Rating = newRating2;
+            var (new1, new2) = eloCalculator.CalculateNewRatings(old1, old2, p1Score);
+
+            r1.Rating = new1;
+            r2.Rating = new2;
 
             ratings.Add(new RatingHistory
             {
-                PlayerId = p1.Id,
+                PlayerId = p1Id,
                 MatchId = match.Id,
-                OldRating = oldRating1,
-                NewRating = newRating1,
+                Game = tournament.Game,
+                OldRating = old1,
+                NewRating = new1,
                 CreatedAt = DateTime.UtcNow
             });
 
             ratings.Add(new RatingHistory
             {
-                PlayerId = p2.Id,
+                PlayerId = p2Id,
                 MatchId = match.Id,
-                OldRating = oldRating2,
-                NewRating = newRating2,
+                Game = tournament.Game,
+                OldRating = old2,
+                NewRating = new2,
                 CreatedAt = DateTime.UtcNow
             });
 
             match.RatingsUpdated = true;
 
             logger.LogInformation(
-                "Elo-reiting uuendatud mängu {MatchId} järel: {P1} ({Old1} -> {New1}), {P2} ({Old2} -> {New2})",
-                match.Id, p1.Username, oldRating1, newRating1, p2.Username, oldRating2, newRating2);
+                "Elo uuendatud mängu {MatchId} järel ({Game}): {P1} ({Old1} -> {New1}), {P2} ({Old2} -> {New2})",
+                match.Id, tournament.Game, p1Id, old1, new1, p2Id, old2, new2);
         }
 
-        await matches.SaveChangesAsync();
-        await users.SaveChangesAsync();
         await ratings.SaveChangesAsync();
+        await matches.SaveChangesAsync();
     }
 
     public async Task<List<RatingHistoryDto>> GetPlayerRatingHistoryAsync(int playerId)
@@ -123,5 +136,17 @@ public class RatingService(
             .OrderBy(h => h.CreatedAt)
             .Select(RatingHistoryDto.FromEntity)
             .ToList();
+    }
+
+    public async Task<List<PlayerRatingDto>> GetPlayerRatingsAsync(int playerId)
+    {
+        var player = await users.GetByIdAsync(playerId);
+        if (player == null)
+        {
+            throw new NotFoundException($"Player with ID {playerId} was not found.");
+        }
+
+        var list = await ratings.GetPlayerRatingsAsync(playerId);
+        return list.Select(PlayerRatingDto.FromEntity).ToList();
     }
 }

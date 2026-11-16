@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TournamentSystem.Application.DTOs;
+﻿using TournamentSystem.Application.DTOs;
 
-namespace TournamentSystem.Application.Interfaces
+namespace TournamentSystem.Application.Interfaces;
+
+public interface IRatingService
 {
-    public interface IRatingService
-    {
-        Task<List<CompletedRoundTournamentDto>> GetCompletedRoundsTournamentsAsync();
-        Task RecalculateTournamentRatingsAsync(int tournamentId);
-        Task<List<RatingHistoryDto>> GetPlayerRatingHistoryAsync(int playerId);
-    }
+    Task<List<CompletedRoundTournamentDto>> GetCompletedRoundsTournamentsAsync();
+    Task RecalculateTournamentRatingsAsync(int tournamentId);
+    Task<List<RatingHistoryDto>> GetPlayerRatingHistoryAsync(int playerId);
+    Task<List<PlayerRatingDto>> GetPlayerRatingsAsync(int playerId);
 }
