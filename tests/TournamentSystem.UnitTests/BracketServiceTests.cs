@@ -146,4 +146,47 @@ public class BracketServiceTests
         Assert.NotEqual(finalMatch.Player1Id, finalMatch.Player2Id);
         Assert.Equal(2, tournament.CurrentRound);
     }
+
+    [Fact]
+    public async Task GenerateNextRoundAsync_EightPlayers_SavesBothMatchesOfRoundTwo()
+    {
+        var tournament = CreateTournamentWithPlayers(8);
+        tournament.Status = TournamentStatus.InProgress;
+        tournament.CurrentRound = 1;
+
+        var players = tournament.Registrations.Select(r => r.Player).ToList();
+
+        for (int i = 0; i < 4; i++)
+        {
+            var p1 = players[i];
+            var p2 = players[7 - i];
+
+            tournament.Matches.Add(new Match
+            {
+                Id = i + 1,
+                TournamentId = 1,
+                Round = 1,
+                Player1Id = p1.Id,
+                Player1 = p1,
+                Player2Id = p2.Id,
+                Player2 = p2,
+                WinnerId = p1.Id,
+                Winner = p1,
+                Status = MatchStatus.Completed
+            });
+        }
+
+        List<Match>? saved = null;
+        _matchRepoMock
+            .Setup(r => r.AddRange(It.IsAny<List<Match>>()))
+            .Callback<List<Match>>(list => saved = list);
+
+        _tournamentRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(tournament);
+
+        await _bracketService.GenerateNextRoundAsync(1);
+
+        Assert.NotNull(saved);
+        Assert.Equal(2, saved!.Count);
+        Assert.All(saved, m => Assert.Equal(2, m.Round));
+    }
 }
