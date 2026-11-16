@@ -24,17 +24,35 @@ public class Worker(
 
     private async Task ProcessCompletedRoundsAsync(CancellationToken stoppingToken)
     {
+        List<TournamentApiClient.CompletedRoundDto> completedTournaments;
+
         try
         {
-            var completedTournaments = await apiClient.GetCompletedRoundsAsync(stoppingToken);
+            completedTournaments = await apiClient.GetCompletedRoundsAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Ei õnnestunud laadida lõppenud voorude nimekirja.");
+            return;
+        }
 
-            if (completedTournaments.Count == 0)
-            {
-                logger.LogInformation("Lõppenud voorudega turniire ei leitud ({Time}).", DateTimeOffset.Now);
-                return;
-            }
+        if (completedTournaments.Count == 0)
+        {
+            logger.LogInformation("Lõppenud voorudega turniire ei leitud ({Time}).", DateTimeOffset.Now);
+            return;
+        }
 
-            foreach (var item in completedTournaments)
+        foreach (var item in completedTournaments)
+        {
+            if (stoppingToken.IsCancellationRequested) return;
+
+            // Iga turniir töödeldakse eraldi: viga ühes ei peata teisi.
+            // Turniir jääb nimekirja, kuni järgmine voor on loodud, seega proovitakse uuesti järgmisel käivitusel.
+            try
             {
                 logger.LogInformation(
                     "Töötlen turniiri '{Name}' (ID: {Id}), lõppenud voor: {Round}...",
@@ -46,14 +64,16 @@ public class Worker(
                 await apiClient.GenerateNextRoundAsync(item.TournamentId, stoppingToken);
                 logger.LogInformation("Järgmine voor on turniiri {Id} jaoks moodustatud.", item.TournamentId);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // ...
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Viga turniiride taustatöötlusel.");
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Turniiri {Id} töötlemine ebaõnnestus. Proovitakse uuesti järgmisel käivitusel.",
+                    item.TournamentId);
+            }
         }
     }
 }
