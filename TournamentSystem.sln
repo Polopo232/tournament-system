@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11222.16 d18.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -18,6 +18,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TournamentSystem.UnitTests", "tests\TournamentSystem.UnitTests\TournamentSystem.UnitTests.csproj", "{262FE4C6-DEC9-432F-94D3-F1EE3B3588F7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "postman", "postman", "{C82B58CC-52B2-4913-BE15-852E80C744C5}"
+	ProjectSection(SolutionItems) = preProject
+		TournamentSystem.postman_collection.json = TournamentSystem.postman_collection.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -112,5 +117,8 @@ Global
 		{05FB42C6-D6A6-4C60-B951-24FBF4DB3658} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{36411777-EEBE-4724-B158-2619F3AB325C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{262FE4C6-DEC9-432F-94D3-F1EE3B3588F7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E4B44DFD-3950-4EC3-82BB-D2293B16321C}
 	EndGlobalSection
 EndGlobal
