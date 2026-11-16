@@ -10,4 +10,6 @@ public class Registration
 
     public int PlayerId { get; set; }
     public User Player { get; set; } = null!;
+
+    public int? SeedNumber { get; set; }
 }

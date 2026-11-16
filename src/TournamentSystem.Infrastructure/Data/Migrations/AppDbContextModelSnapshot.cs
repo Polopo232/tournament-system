@@ -153,6 +153,9 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Property<DateTime>("RegisteredAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("SeedNumber")
+                        .HasColumnType("int");
+
                     b.Property<int>("TournamentId")
                         .HasColumnType("int");
 

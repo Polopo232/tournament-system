@@ -27,21 +27,24 @@ public class BracketService(
             throw new ValidationException("At least 2 registered players are required to generate a bracket.");
         }
 
-        var seededPlayers = tournament.Registrations
-            .Select(r => r.Player)
-            .OrderByDescending(p => GetRating(p, tournament.Game))
-            .ThenBy(p => p.Id)
+        var seededRegistrations = tournament.Registrations
+            .OrderByDescending(r => GetRating(r.Player, tournament.Game))
+            .ThenBy(r => r.PlayerId)
             .ToList();
+
+        for (int i = 0; i < seededRegistrations.Count; i++)
+        {
+            seededRegistrations[i].SeedNumber = i + 1;
+        }
+
+        var seededPlayers = seededRegistrations.Select(r => r.Player).ToList();
 
         var createdMatches = tournament.Format == TournamentFormat.SingleElimination
             ? CreateSingleEliminationFirstRound(tournament.Id, seededPlayers)
             : CreateRoundRobinRound(tournament.Id, seededPlayers, round: 1);
 
-        foreach (var match in createdMatches)
-        {
-            matches.AddRange(createdMatches);
-        }
-
+        matches.AddRange(createdMatches);
+        tournament.Matches.AddRange(createdMatches);
         tournament.Status = TournamentStatus.InProgress;
         tournament.CurrentRound = 1;
 
@@ -89,8 +92,8 @@ public class BracketService(
     }
 
     private async Task<List<MatchDto>> HandleNextSingleEliminationRoundAsync(
-        Tournament tournament,
-        List<Match> currentRoundMatches)
+    Tournament tournament,
+    List<Match> currentRoundMatches)
     {
         var winners = currentRoundMatches
             .Select(m => m.Winner ?? (m.WinnerId == m.Player1Id ? m.Player1 : m.Player2))
@@ -117,7 +120,7 @@ public class BracketService(
             var p1 = winners[i];
             var p2 = i + 1 < winners.Count ? winners[i + 1] : null;
 
-            var match = new Match
+            nextMatches.Add(new Match
             {
                 TournamentId = tournament.Id,
                 Round = nextRound,
@@ -128,26 +131,30 @@ public class BracketService(
                 Status = p2 == null ? MatchStatus.Completed : MatchStatus.Pending,
                 WinnerId = p2 == null ? p1.Id : null,
                 PlayedAt = p2 == null ? DateTime.UtcNow : null
-            };
-
-            matches.AddRange(nextMatches);
-            nextMatches.Add(match);
+            });
         }
 
+        matches.AddRange(nextMatches);
+        tournament.Matches.AddRange(nextMatches);
         tournament.CurrentRound = nextRound;
+
         await matches.SaveChangesAsync();
         await tournaments.SaveChangesAsync();
 
-        logger.LogInformation("SingleElimination {Round}. voor genereeritud turniirile {TournamentId}", nextRound, tournament.Id);
+        logger.LogInformation("SingleElimination {Round}. voor genereeritud turniirile {TournamentId}",
+            nextRound, tournament.Id);
+
         return nextMatches.Select(MatchDto.FromEntity).ToList();
     }
 
     private async Task<List<MatchDto>> HandleNextRoundRobinRoundAsync(Tournament tournament)
     {
+        // The order is determined by SeedNumber, not by the current ranking.
+        // For tournaments created before this migration, SeedNumber is empty, so we place them at the end based on their ID.
         var seededPlayers = tournament.Registrations
+            .OrderBy(r => r.SeedNumber ?? int.MaxValue)
+            .ThenBy(r => r.PlayerId)
             .Select(r => r.Player)
-            .OrderByDescending(p => GetRating(p, tournament.Game))
-            .ThenBy(p => p.Id)
             .ToList();
 
         int totalParticipants = seededPlayers.Count % 2 == 0 ? seededPlayers.Count : seededPlayers.Count + 1;
@@ -165,16 +172,16 @@ public class BracketService(
         var nextRound = tournament.CurrentRound + 1;
         var nextMatches = CreateRoundRobinRound(tournament.Id, seededPlayers, nextRound);
 
-        foreach (var match in nextMatches)
-        {
-            matches.AddRange(nextMatches);
-        }
-
+        matches.AddRange(nextMatches);
+        tournament.Matches.AddRange(nextMatches);
         tournament.CurrentRound = nextRound;
+
         await matches.SaveChangesAsync();
         await tournaments.SaveChangesAsync();
 
-        logger.LogInformation("RoundRobin {Round}. voor genereeritud turniirile {TournamentId}", nextRound, tournament.Id);
+        logger.LogInformation("RoundRobin {Round}. voor genereeritud turniirile {TournamentId}",
+            nextRound, tournament.Id);
+
         return nextMatches.Select(MatchDto.FromEntity).ToList();
     }
 

@@ -28,17 +28,24 @@ public class RatingService(
                 .Where(m => m.Round == fullTournament.CurrentRound)
                 .ToList();
 
-            if (currentRoundMatches.Count > 0 &&
-                currentRoundMatches.All(m => m.Status == MatchStatus.Completed) &&
-                currentRoundMatches.Any(m => !m.RatingsUpdated && m.Player2Id != null))
+            if (currentRoundMatches.Count == 0) continue;
+
+            // All matches in the current round must be played
+            if (currentRoundMatches.Any(m => m.Status != MatchStatus.Completed)) continue;
+
+            // The tournament needs to be processed before the next round is created.
+            // This allows for a retry if the previous run crashed after the Elo recalculation.
+            bool nextRoundExists = fullTournament.Matches
+                .Any(m => m.Round == fullTournament.CurrentRound + 1);
+
+            if (nextRoundExists) continue;
+
+            result.Add(new CompletedRoundTournamentDto
             {
-                result.Add(new CompletedRoundTournamentDto
-                {
-                    TournamentId = fullTournament.Id,
-                    TournamentName = fullTournament.Name,
-                    CompletedRound = fullTournament.CurrentRound
-                });
-            }
+                TournamentId = fullTournament.Id,
+                TournamentName = fullTournament.Name,
+                CompletedRound = fullTournament.CurrentRound
+            });
         }
 
         return result;
