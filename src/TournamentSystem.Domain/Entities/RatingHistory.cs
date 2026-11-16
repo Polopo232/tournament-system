@@ -3,6 +3,7 @@ namespace TournamentSystem.Domain.Entities;
 public class RatingHistory
 {
     public int Id { get; set; }
+    public string Game { get; set; } = string.Empty;
     public int OldRating { get; set; }
     public int NewRating { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

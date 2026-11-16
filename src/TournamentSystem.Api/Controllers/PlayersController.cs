@@ -5,7 +5,7 @@ using TournamentSystem.Application.Interfaces;
 namespace TournamentSystem.Api.Controllers;
 
 /// <summary>
-/// Mängijate statistika ja reitingu ajaloo lõpppunktid.
+/// Mängijate profiili ja reitingute lõpp-punktid.
 /// </summary>
 [ApiController]
 [Route("api/players")]
@@ -13,17 +13,24 @@ namespace TournamentSystem.Api.Controllers;
 public class PlayersController(IRatingService ratingService) : ControllerBase
 {
     /// <summary>
-    /// Tagastab mängija Elo-reitingu muudatuste ajaloo.
+    /// Tagastab mängija Elo ajaloo kronoloogilises järjekorras.
     /// </summary>
-    /// <param name="id">Mängija unikaalne ID.</param>
-    /// <response code="200">Reitingu ajalugu edukalt tagastatud.</response>
-    /// <response code="404">Mängijat ei leitud.</response>
     [HttpGet("{id}/rating-history")]
     [ProducesResponseType(typeof(List<RatingHistoryDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<RatingHistoryDto>>> GetRatingHistory(int id)
     {
         var history = await ratingService.GetPlayerRatingHistoryAsync(id);
         return Ok(history);
+    }
+
+    /// <summary>
+    /// Tagastab mängija reitingud kõigis mängudes.
+    /// </summary>
+    [HttpGet("{id}/ratings")]
+    [ProducesResponseType(typeof(List<PlayerRatingDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<PlayerRatingDto>>> GetRatings(int id)
+    {
+        var ratings = await ratingService.GetPlayerRatingsAsync(id);
+        return Ok(ratings);
     }
 }

@@ -10,17 +10,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Registration> Registrations => Set<Registration>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<RatingHistory> RatingHistory => Set<RatingHistory>();
+    public DbSet<PlayerRating> PlayerRatings => Set<PlayerRating>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
         {
             entity.Property(u => u.Username).HasMaxLength(50).IsRequired();
+            entity.Property(u => u.DisplayName).HasMaxLength(20).IsRequired();
             entity.Property(u => u.Email).HasMaxLength(100).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.Role).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(u => u.Username).IsUnique();
+            entity.HasIndex(u => u.DisplayName).IsUnique();
             entity.HasIndex(u => u.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<PlayerRating>(entity =>
+        {
+            entity.Property(r => r.Game).HasMaxLength(50).IsRequired();
+            entity.HasIndex(r => new { r.UserId, r.Game }).IsUnique();
+
+            entity.HasOne(r => r.User)
+                .WithMany(u => u.Ratings)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Tournament>(entity =>
@@ -79,6 +93,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<RatingHistory>(entity =>
         {
+            entity.Property(h => h.Game).HasMaxLength(50).IsRequired();
+
             entity.HasOne(h => h.Player)
                 .WithMany(u => u.RatingHistory)
                 .HasForeignKey(h => h.PlayerId)

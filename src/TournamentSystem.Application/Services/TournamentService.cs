@@ -177,6 +177,7 @@ public class TournamentService(
         {
             TournamentId = tournamentId,
             PlayerId = playerId,
+            Player = player,
             RegisteredAt = DateTime.UtcNow
         };
 
@@ -187,6 +188,6 @@ public class TournamentService(
             "Mängija {Username} (ID: {PlayerId}) registreerus turniirile {TournamentName} (ID: {TournamentId})",
             player.Username, playerId, tournament.Name, tournamentId);
 
-        return RegistrationDto.FromEntity(registration);
+        return RegistrationDto.FromEntity(registration, tournament.Game);
     }
 }

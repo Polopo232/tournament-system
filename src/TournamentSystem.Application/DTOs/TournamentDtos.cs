@@ -148,7 +148,7 @@ public class TournamentDetailsDto
             OrganizerId = t.OrganizerId,
             RegisteredPlayersCount = t.Registrations?.Count ?? 0,
             Registrations = t.Registrations?
-                .Select(RegistrationDto.FromEntity)
+                .Select(r => RegistrationDto.FromEntity(r, t.Game))
                 .ToList() ?? [],
             Matches = t.Matches?
                 .OrderBy(m => m.Round)
@@ -164,18 +164,22 @@ public class TournamentDetailsDto
         public int TournamentId { get; set; }
         public int PlayerId { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
         public int Rating { get; set; }
         public DateTime RegisteredAt { get; set; }
 
-        public static RegistrationDto FromEntity(Registration r)
+        public static RegistrationDto FromEntity(Registration r, string game)
         {
+            var rating = r.Player?.Ratings.FirstOrDefault(x => x.Game == game)?.Rating ?? 1200;
+
             return new RegistrationDto
             {
                 Id = r.Id,
                 TournamentId = r.TournamentId,
                 PlayerId = r.PlayerId,
                 Username = r.Player?.Username ?? $"Mängija #{r.PlayerId}",
-                Rating = r.Player?.Rating ?? 1200,
+                DisplayName = r.Player?.DisplayName ?? $"Mängija #{r.PlayerId}",
+                Rating = rating,
                 RegisteredAt = r.RegisteredAt
             };
         }
@@ -200,9 +204,9 @@ public class TournamentDetailsDto
                 Id = m.Id,
                 Round = m.Round,
                 Player1Id = m.Player1Id,
-                Player1Name = m.Player1?.Username ?? $"Mängija #{m.Player1Id}",
+                Player1Name = m.Player1?.DisplayName ?? $"Mängija #{m.Player1Id}",
                 Player2Id = m.Player2Id,
-                Player2Name = m.Player2?.Username,
+                Player2Name = m.Player2?.DisplayName,
                 Player1Score = m.Player1Score,
                 Player2Score = m.Player2Score,
                 Status = m.Status.ToString()

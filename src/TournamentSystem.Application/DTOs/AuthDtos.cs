@@ -8,7 +8,7 @@ namespace TournamentSystem.Application.DTOs;
 public class RegisterDto
 {
     /// <summary>
-    /// Kasutajanimi süsteemis (3 kuni 50 tähemärki).
+    /// Sisselogimise kasutajanimi (3–50 märki).
     /// </summary>
     /// <example>nikita_dev</example>
     [Required]
@@ -16,17 +16,19 @@ public class RegisterDto
     public string Username { get; set; } = string.Empty;
 
     /// <summary>
-    /// Kasutaja e-posti aadress.
+    /// Avalik nick, mida näevad teised mängijad (3–20 märki).
     /// </summary>
+    /// <example>Nikita</example>
+    [Required]
+    [StringLength(20, MinimumLength = 3)]
+    public string DisplayName { get; set; } = string.Empty;
+
     /// <example>nikita@example.com</example>
     [Required]
     [EmailAddress]
     [StringLength(100)]
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Kasutaja parool (vähemalt 6 tähemärki).
-    /// </summary>
     /// <example>SecretPass123!</example>
     [Required]
     [StringLength(100, MinimumLength = 6)]

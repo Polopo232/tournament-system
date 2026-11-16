@@ -8,50 +8,36 @@ namespace TournamentSystem.Application.DTOs;
 /// </summary>
 public class UserDto
 {
-    /// <summary>
-    /// Kasutaja unikaalne ID.
-    /// </summary>
     /// <example>1</example>
     public int Id { get; set; }
 
     /// <summary>
-    /// Kasutajanimi.
+    /// Sisselogimise kasutajanimi.
     /// </summary>
-    /// <example>nikita_dev</example>
+    /// <example>player1</example>
     public string Username { get; set; } = string.Empty;
 
     /// <summary>
-    /// Kasutaja e-posti aadress.
+    /// Avalik nick, mida kuvatakse kõikjal.
     /// </summary>
+    /// <example>Mari</example>
+    public string DisplayName { get; set; } = string.Empty;
+
     /// <example>nikita@example.com</example>
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Kasutaja roll süsteemis (nt Player, Organizer, Admin).
-    /// </summary>
     /// <example>Player</example>
     public string Role { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Mängija praegune ELO reiting.
-    /// </summary>
-    /// <example>1200</example>
-    public int Rating { get; set; }
-
-    /// <summary>
-    /// Teisendab domeeni User objekti UserDto mudeliks.
-    /// </summary>
-    /// <param name="user">Domeeni kasutaja olem.</param>
-    /// <returns>Kasutaja DTO.</returns>
     public static UserDto FromEntity(User user)
     {
         return new UserDto
         {
             Id = user.Id,
             Username = user.Username,
+            DisplayName = user.DisplayName,
             Email = user.Email,
-            Role = user.Role.ToString(),
-            Rating = user.Rating
+            Role = user.Role.ToString()
         };
     }
 }
@@ -61,9 +47,6 @@ public class UserDto
 /// </summary>
 public class ChangeRoleDto
 {
-    /// <summary>
-    /// Uus roll, mis määratakse kasutajale (nt Admin, Organizer, Player).
-    /// </summary>
     /// <example>Admin</example>
     [Required]
     [EnumDataType(typeof(UserRole))]

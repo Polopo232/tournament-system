@@ -29,7 +29,7 @@ public class BracketService(
 
         var seededPlayers = tournament.Registrations
             .Select(r => r.Player)
-            .OrderByDescending(p => p.Rating)
+            .OrderByDescending(p => GetRating(p, tournament.Game))
             .ThenBy(p => p.Id)
             .ToList();
 
@@ -146,7 +146,7 @@ public class BracketService(
     {
         var seededPlayers = tournament.Registrations
             .Select(r => r.Player)
-            .OrderByDescending(p => p.Rating)
+            .OrderByDescending(p => GetRating(p, tournament.Game))
             .ThenBy(p => p.Id)
             .ToList();
 
@@ -252,5 +252,10 @@ public class BracketService(
         }
 
         return result;
+    }
+
+    private static int GetRating(User player, string game)
+    {
+        return player.Ratings.FirstOrDefault(r => r.Game == game)?.Rating ?? 1200;
     }
 }
