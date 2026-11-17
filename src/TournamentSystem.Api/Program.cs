@@ -16,6 +16,12 @@ using TournamentSystem.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Key"]))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is not configured. Set it with: dotnet user-secrets set \"Jwt:Key\" \"<value>\" --project src/TournamentSystem.Api");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -143,7 +149,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbInitializer.SeedAsync(db);
+    if (app.Environment.IsDevelopment())
+    {
+        await DbInitializer.SeedAsync(db);
+    }
+    else
+    {
+        await db.Database.MigrateAsync();
+    }
 }
 
 app.UseExceptionHandler();
