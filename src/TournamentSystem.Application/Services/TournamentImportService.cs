@@ -176,7 +176,6 @@ public class TournamentImportService(
         var externalId = $"lichess:{arena.Id}";
         var tournament = await tournaments.GetByExternalIdAsync(externalId);
 
-        // Lõppenud arenat ei uuendata enam
         if (tournament?.Status == TournamentStatus.Finished)
         {
             return SyncOutcome.Skipped;
@@ -185,14 +184,15 @@ public class TournamentImportService(
         var isFinished = arena.Status == FinishedStatus;
         var results = await arenaSource.GetResultsAsync(arena.Id);
         var isNew = tournament == null;
+        var gameKey = $"Chess ({arena.PerfKey})";
 
         if (tournament == null)
         {
             tournament = new Tournament
             {
                 Name = arena.Name,
-                Game = "Chess",
-                Description = $"Lichess arena · {arena.PerfKey} · {arena.Minutes} min",
+                Game = gameKey,
+                Description = $"Lichess arena · {arena.PerfKey} · {arena.ClockLimitSeconds / 60} min",
                 Format = TournamentFormat.Arena,
                 Status = TournamentStatus.InProgress,
                 MaxPlayers = Math.Max(1, results.Count),
@@ -203,6 +203,10 @@ public class TournamentImportService(
             };
 
             tournaments.Add(tournament);
+        }
+        else
+        {
+            tournament.Game = gameKey;
         }
 
         foreach (var r in results.OrderBy(x => x.Rank))
@@ -224,6 +228,11 @@ public class TournamentImportService(
 
             registration.FinalRank = r.Rank;
             registration.Score = r.Score;
+
+            if (r.Rating > 0)
+            {
+                SetCategoryRating(player, gameKey, r.Rating);
+            }
         }
 
         tournament.MaxPlayers = Math.Max(tournament.MaxPlayers, tournament.Registrations.Count);
@@ -239,5 +248,28 @@ public class TournamentImportService(
 
         await tournaments.SaveChangesAsync();
         return isNew ? SyncOutcome.Created : SyncOutcome.Updated;
+    }
+
+    /// <summary>
+    /// Salvestab Lichessi reitingu kategooria järgi. Olemasoleva kirje uuendab, uut loob.
+    /// Elo-d see ei muuda.
+    /// </summary>
+    private static void SetCategoryRating(User player, string game, int rating)
+    {
+        var entry = player.Ratings.FirstOrDefault(x => x.Game == game);
+
+        if (entry == null)
+        {
+            player.Ratings.Add(new PlayerRating
+            {
+                User = player,
+                Game = game,
+                Rating = rating
+            });
+        }
+        else
+        {
+            entry.Rating = rating;
+        }
     }
 }
