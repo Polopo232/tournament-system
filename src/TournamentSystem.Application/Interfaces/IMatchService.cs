@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TournamentSystem.Application.DTOs;
+﻿using TournamentSystem.Application.DTOs;
+using TournamentSystem.Application.Security;
 
-namespace TournamentSystem.Application.Interfaces
+namespace TournamentSystem.Application.Interfaces;
+
+public interface IMatchService
 {
-    public interface IMatchService
-    {
-        Task<MatchResultResponseDto> SubmitResultAsync(int matchId, SubmitMatchResultDto dto);
-    }
+    Task<MatchResultResponseDto> SubmitResultAsync(int matchId, SubmitMatchResultDto dto, CurrentUser? actor = null);
 }
