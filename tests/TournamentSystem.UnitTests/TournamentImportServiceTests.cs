@@ -103,4 +103,46 @@ public class TournamentImportServiceTests
 
         _arena.Verify(a => a.GetArenaAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Sync_OnlyTakesArenasMatchingCategoryAndDuration()
+    {
+        _arena.Setup(a => a.GetArenaListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalArenaSummary>
+            {
+                new("abcd1234", "Rapid 10", "rapid", 10, 20, DateTime.UtcNow),
+                new("efgh5678", "Bullet 1", "bullet", 1, 20, DateTime.UtcNow),
+                new("ijkl9012", "Rapid 30", "rapid", 30, 20, DateTime.UtcNow)
+            });
+
+        _tournaments.Setup(t => t.GetByExternalIdAsync(It.IsAny<string>()))
+            .ReturnsAsync((Tournament?)null);
+
+        _arena.Setup(a => a.GetResultsAsync("abcd1234", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalArenaResult> { new(1, "Magnus", 10), new(2, "Hikaru", 8) });
+
+        var result = await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
+
+        Assert.Equal(1, result.Created);
+        _tournaments.Verify(t => t.Add(It.Is<Tournament>(x => x.Format == TournamentFormat.Arena
+            && x.Status == TournamentStatus.InProgress)), Times.Once);
+    }
+
+    [Fact]
+    public async Task Sync_FinishedArenaAlreadyStored_IsSkipped()
+    {
+        _arena.Setup(a => a.GetArenaListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalArenaSummary>
+            {
+                new("abcd1234", "Rapid 10", "rapid", 10, 30, DateTime.UtcNow)
+            });
+
+        _tournaments.Setup(t => t.GetByExternalIdAsync("lichess:abcd1234"))
+            .ReturnsAsync(new Tournament { Id = 7, Status = TournamentStatus.Finished, ExternalId = "lichess:abcd1234" });
+
+        var result = await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
+
+        Assert.Equal(1, result.Skipped);
+        _arena.Verify(a => a.GetResultsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
