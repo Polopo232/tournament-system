@@ -278,8 +278,8 @@ public class BracketService(
     }
 
     /// <summary>
-    /// Победа 1 очко, ничья 0,5. Пропуски (bye) не считаются.
-    /// При равенстве очков выше тот, у кого лучший посев (меньший SeedNumber).
+    /// win 1 score, draw 0,5. skips don't count.
+    /// If score is similar, win get person with better seed (SeedNumber).
     /// </summary>
     private static User? DetermineRoundRobinWinner(Tournament tournament)
     {
