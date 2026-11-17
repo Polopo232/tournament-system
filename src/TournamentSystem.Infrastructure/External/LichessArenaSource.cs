@@ -52,14 +52,14 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
             using var doc = JsonDocument.Parse(line);
             var item = doc.RootElement;
 
-            // Lichess uses "username" in results and "name" in arena standings, accept both
             var username = GetString(item, "username") ?? GetString(item, "name");
             if (string.IsNullOrWhiteSpace(username)) continue;
 
             results.Add(new ExternalArenaResult(
-                item.GetProperty("rank").GetInt32(),
+                GetInt(item, "rank"),
                 username,
-                item.GetProperty("score").GetInt32()));
+                GetInt(item, "score"),
+                GetInt(item, "rating")));
         }
 
         return results;
