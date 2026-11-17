@@ -58,7 +58,9 @@ public class BracketService(
             "Turniiritabel (1. voor, formaat {Format}) genereeritud turniirile {TournamentId}. Mängude arv: {Count}",
             tournament.Format, tournamentId, createdMatches.Count);
 
-        return createdMatches.Select(MatchDto.FromEntity).ToList();
+        var dtos = createdMatches.Select(MatchDto.FromEntity).ToList();
+        await notifier.NotifyRoundCreatedAsync(tournament.Id, 1, dtos);
+        return dtos;
     }
 
     public async Task<List<MatchDto>> GenerateNextRoundAsync(int tournamentId, CurrentUser? actor = null)
@@ -150,7 +152,9 @@ public class BracketService(
         logger.LogInformation("SingleElimination {Round}. voor genereeritud turniirile {TournamentId}",
             nextRound, tournament.Id);
 
-        return nextMatches.Select(MatchDto.FromEntity).ToList();
+        var dtos = nextMatches.Select(MatchDto.FromEntity).ToList();
+        await notifier.NotifyRoundCreatedAsync(tournament.Id, nextRound, dtos);
+        return dtos;
     }
 
     private async Task<List<MatchDto>> HandleNextRoundRobinRoundAsync(Tournament tournament)
@@ -191,7 +195,9 @@ public class BracketService(
         logger.LogInformation("RoundRobin {Round}. voor genereeritud turniirile {TournamentId}",
             nextRound, tournament.Id);
 
-        return nextMatches.Select(MatchDto.FromEntity).ToList();
+        var dtos = nextMatches.Select(MatchDto.FromEntity).ToList();
+        await notifier.NotifyRoundCreatedAsync(tournament.Id, nextRound, dtos);
+        return dtos;
     }
 
     private static List<Match> CreateSingleEliminationFirstRound(int tournamentId, List<User> seededPlayers)

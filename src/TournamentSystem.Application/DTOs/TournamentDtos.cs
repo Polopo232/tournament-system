@@ -178,6 +178,8 @@ public class TournamentDetailsDto
         public string Username { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public int Rating { get; set; }
+        public int? FinalRank { get; set; }
+        public int? Score { get; set; }
         public DateTime RegisteredAt { get; set; }
 
         public static RegistrationDto FromEntity(Registration r, string game)
@@ -192,6 +194,8 @@ public class TournamentDetailsDto
                 Username = r.Player?.Username ?? $"Mängija #{r.PlayerId}",
                 DisplayName = r.Player?.DisplayName ?? $"Mängija #{r.PlayerId}",
                 Rating = rating,
+                FinalRank = r.FinalRank,
+                Score = r.Score,
                 RegisteredAt = r.RegisteredAt
             };
         }
