@@ -110,9 +110,9 @@ public class TournamentImportServiceTests
         _arena.Setup(a => a.GetArenaListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ExternalArenaSummary>
             {
-                new("abcd1234", "Rapid 10", "rapid", 10, 20, DateTime.UtcNow),
-                new("efgh5678", "Bullet 1", "bullet", 1, 20, DateTime.UtcNow),
-                new("ijkl9012", "Rapid 30", "rapid", 30, 20, DateTime.UtcNow)
+                new("abcd1234", "Rapid 10", "rapid", 0, 20, DateTime.UtcNow, 600),
+                new("efgh5678", "Bullet 1", "bullet", 0, 20, DateTime.UtcNow, 60),
+                new("ijkl9012", "Rapid 30", "rapid", 0, 20, DateTime.UtcNow, 1800)
             });
 
         _tournaments.Setup(t => t.GetByExternalIdAsync(It.IsAny<string>()))
@@ -134,7 +134,7 @@ public class TournamentImportServiceTests
         _arena.Setup(a => a.GetArenaListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ExternalArenaSummary>
             {
-                new("abcd1234", "Rapid 10", "rapid", 10, 30, DateTime.UtcNow)
+                new("abcd1234", "Rapid 10", "rapid", 0, 30, DateTime.UtcNow, 600)
             });
 
         _tournaments.Setup(t => t.GetByExternalIdAsync("lichess:abcd1234"))
