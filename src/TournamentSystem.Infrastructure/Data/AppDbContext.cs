@@ -44,6 +44,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(t => t.Description).HasMaxLength(1000);
             entity.Property(t => t.Format).HasConversion<string>().HasMaxLength(30);
             entity.Property(t => t.Status).HasConversion<string>().HasMaxLength(30);
+            entity.Property(t => t.ExternalId).HasMaxLength(50);
+            entity.HasIndex(t => t.ExternalId)
+                .IsUnique()
+                .HasFilter("[ExternalId] IS NOT NULL");
 
             entity.HasOne(t => t.Winner)
                 .WithMany()

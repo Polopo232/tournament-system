@@ -16,11 +16,13 @@ public class Tournament
     public int OrganizerId { get; set; }
     public User Organizer { get; set; } = null!;
 
-    /// <summary>
-    /// Turniiri võitja. Täidetakse, kui turniir lõpeb.
-    /// </summary>
     public int? WinnerId { get; set; }
     public User? Winner { get; set; }
+
+    /// <summary>
+    /// Välise allika ID, näiteks "lichess:abcd1234". Tavalistel turniiridel on tühi.
+    /// </summary>
+    public string? ExternalId { get; set; }
 
     public List<Registration> Registrations { get; set; } = new();
     public List<Match> Matches { get; set; } = new();

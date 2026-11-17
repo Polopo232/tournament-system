@@ -12,4 +12,10 @@ public class Registration
     public User Player { get; set; } = null!;
 
     public int? SeedNumber { get; set; }
+
+    /// <summary>Lõppkoht (imporditud turniiride jaoks).</summary>
+    public int? FinalRank { get; set; }
+
+    /// <summary>Lõpptulemus punktides (imporditud turniiride jaoks).</summary>
+    public int? Score { get; set; }
 }
