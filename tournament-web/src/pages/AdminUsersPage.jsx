@@ -92,12 +92,13 @@ export function AdminUsersPage() {
                                         <td>#{u.id}</td>
                                         <td>
                                             <Link to={`/players/${u.id}`} style={{ fontWeight: 600 }}>
-                                                {u.username}
+                                                {u.displayName}{' '}
+                                                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({u.username})</span>
                                             </Link>
                                         </td>
                                         <td>{u.email}</td>
                                         <td>
-                                            <strong>{u.rating ?? u.eloRating ?? 1200}</strong>
+                                            <span style={{ color: 'var(--text-muted)' }}>—</span>
                                         </td>
                                         <td>
                                             <select

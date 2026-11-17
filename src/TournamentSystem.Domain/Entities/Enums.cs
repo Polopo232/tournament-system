@@ -11,7 +11,8 @@ public enum UserRole
 public enum TournamentFormat
 {
     SingleElimination,
-    RoundRobin
+    RoundRobin,
+    Arena
 }
 
 public enum TournamentStatus

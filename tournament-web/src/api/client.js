@@ -37,6 +37,8 @@ function parseJwtUser(token) {
             json.username ||
             'Kasutaja';
 
+        const displayName = json.displayName || username;
+
         const role =
             json['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
             json.role ||
@@ -45,10 +47,11 @@ function parseJwtUser(token) {
         return {
             id: rawId ? Number(rawId) : null,
             username,
+            displayName,
             role,
         };
     } catch {
-        return { id: null, username: 'Kasutaja', role: 'Player' };
+        return { id: null, username: 'Kasutaja', displayName: 'Kasutaja', role: 'Player' };
     }
 }
 
@@ -60,6 +63,7 @@ export function saveAuthSession(data) {
     const userObj = {
         id: data.id ?? data.userId ?? data.user?.id ?? fromJwt.id,
         username: data.username ?? data.user?.username ?? fromJwt.username,
+        displayName: data.user?.displayName ?? fromJwt.displayName,
         role: data.role ?? data.user?.role ?? fromJwt.role,
     };
 
@@ -84,6 +88,7 @@ export function getStoredUser() {
         return {
             id: parsed.id || fromJwt.id,
             username: parsed.username || fromJwt.username,
+            displayName: parsed.displayName || fromJwt.displayName,
             role: parsed.role || fromJwt.role,
         };
     } catch {

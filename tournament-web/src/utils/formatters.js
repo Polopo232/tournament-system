@@ -40,6 +40,7 @@ export function formatTournamentFormat(format) {
     const map = {
         SingleElimination: 'Ühe väljalangemisega',
         RoundRobin: 'Kõik kõigiga',
+        Arena: 'Lichess-arena',
     };
     return map[format] || format;
 }

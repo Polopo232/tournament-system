@@ -9,6 +9,7 @@ import {
     formatTournamentFormat,
     getStatusBadgeClass,
 } from '../utils/formatters';
+import { WinnerBanner } from '../components/WinnerBanner';
 
 export function TournamentDetailPage() {
     const { id } = useParams();
@@ -63,6 +64,7 @@ export function TournamentDetailPage() {
                         const partRes = await apiClient.get(`/api/tournaments/${tournamentId}/participants`);
                         if (Array.isArray(partRes.data)) foundParticipants = partRes.data;
                     } catch {
+                        // участники не найдены по этому маршруту
                     }
                 }
             }
@@ -240,6 +242,30 @@ export function TournamentDetailPage() {
         setScore2(match.player2Score ?? 0);
     };
 
+    const handleFinishTournament = async () => {
+        if (!window.confirm('Kas oled kindel, et soovid turniiri lõpetada? Elo arvutatakse ümber.')) return;
+
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/finish`);
+            window.location.reload();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Turniiri lõpetamine ebaõnnestus.');
+        }
+    };
+
+    const handleNextRound = async () => {
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/ratings/recalculate`);
+            await apiClient.post(`/api/tournaments/${tournamentId}/rounds/next`);
+            setActionMsg('Järgmine voor on loodud!');
+            await loadTournament();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Järgmise vooru loomine ebaõnnestus.');
+        }
+    };
+
     const handleSaveResult = async (e) => {
         e.preventDefault();
         if (!selectedMatch) return;
@@ -318,6 +344,21 @@ export function TournamentDetailPage() {
         .map(Number)
         .sort((a, b) => a - b);
 
+    const currentRoundMatches = matches.filter((m) => m.round === tournament.currentRound);
+    const roundDone =
+        currentRoundMatches.length > 0 && currentRoundMatches.every((m) => m.status === 'Completed');
+
+    const playerCount = tournament.registeredPlayersCount ?? participants.length;
+    const totalRrRounds = (playerCount % 2 === 0 ? playerCount : playerCount + 1) - 1;
+
+    const isFinalReady =
+        tournament.format === 'SingleElimination'
+            ? currentRoundMatches.length === 1
+            : tournament.format === 'RoundRobin' && tournament.currentRound >= totalRrRounds;
+
+    const canFinish = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && isFinalReady;
+    const canNextRound = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && !isFinalReady;
+
     return (
         <div className="container">
             <Link to="/tournaments" className="back-link">
@@ -354,6 +395,16 @@ export function TournamentDetailPage() {
               </span>
                         )}
 
+                        {canNextRound && (
+                            <button onClick={handleNextRound} className="btn btn-success">
+                                Genereeri järgmine voor
+                            </button>
+                        )}
+                        {canFinish && (
+                            <button onClick={handleFinishTournament} className="btn btn-primary">
+                                Lõpeta turniir
+                            </button>
+                        )}
                         {isAdminOrOrganizer && isOpenForRegistration && matches.length === 0 && (
                             <button onClick={handleGenerateBracket} className="btn btn-success">
                                 Genereeri turniiritabel
@@ -412,6 +463,7 @@ export function TournamentDetailPage() {
             {error && <div className="alert-error">{error}</div>}
 
             <div className="panel">
+                <WinnerBanner tournament={tournament} />
                 <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>
                     Registreerunud osalejad ({displayCount} / {maxP})
                 </h2>
@@ -424,7 +476,7 @@ export function TournamentDetailPage() {
                     <div className="participants-list">
                         {participants.map((p) => {
                             const playerId = p.playerId || p.userId || p.id;
-                            const playerName = p.username || p.playerName || `Mängija #${playerId}`;
+                            const playerName = p.displayName || p.username || p.playerName || `Mängija #${playerId}`;
                             const elo = p.rating ?? p.eloRating;
 
                             return (

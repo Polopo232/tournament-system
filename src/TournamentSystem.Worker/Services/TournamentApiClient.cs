@@ -15,7 +15,9 @@ public class TournamentApiClient(
 
     private record LoginRequest(string Username, string Password);
     private record LoginResponse(string Token);
+
     public record CompletedRoundDto(int TournamentId, string TournamentName, int CompletedRound);
+    public record LichessSyncSummary(int Created, int Updated, int Finished, int Skipped, int Failed);
 
     public async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)
     {
@@ -33,6 +35,7 @@ public class TournamentApiClient(
     {
         var username = configuration["ApiSettings:Username"] ?? "service";
         var password = configuration["ApiSettings:Password"];
+
         if (string.IsNullOrWhiteSpace(password))
         {
             throw new InvalidOperationException(
@@ -117,5 +120,22 @@ public class TournamentApiClient(
         }
 
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<LichessSyncSummary?> SyncLichessAsync(CancellationToken cancellationToken)
+    {
+        await EnsureAuthenticatedAsync(cancellationToken);
+
+        var response = await httpClient.PostAsync("/api/service/lichess/sync", null, cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            await AuthenticateAsync(cancellationToken);
+            response = await httpClient.PostAsync("/api/service/lichess/sync", null, cancellationToken);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<LichessSyncSummary>(cancellationToken: cancellationToken);
     }
 }

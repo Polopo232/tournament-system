@@ -12,14 +12,20 @@ public class Worker(
         int intervalMinutes = configuration.GetValue<int?>("ApiSettings:IntervalMinutes") ?? 5;
         logger.LogInformation("TournamentSystem.Worker käivitus. Kontrolli intervall: {Minutes} minutit.", intervalMinutes);
 
-        await ProcessCompletedRoundsAsync(stoppingToken);
+        await RunCycleAsync(stoppingToken);
 
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(intervalMinutes));
 
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            await ProcessCompletedRoundsAsync(stoppingToken);
+            await RunCycleAsync(stoppingToken);
         }
+    }
+
+    private async Task RunCycleAsync(CancellationToken stoppingToken)
+    {
+        await ProcessCompletedRoundsAsync(stoppingToken);
+        await SyncLichessAsync(stoppingToken);
     }
 
     private async Task ProcessCompletedRoundsAsync(CancellationToken stoppingToken)
@@ -50,8 +56,6 @@ public class Worker(
         {
             if (stoppingToken.IsCancellationRequested) return;
 
-            // Iga turniir töödeldakse eraldi: viga ühes ei peata teisi.
-            // Turniir jääb nimekirja, kuni järgmine voor on loodud, seega proovitakse uuesti järgmisel käivitusel.
             try
             {
                 logger.LogInformation(
@@ -59,10 +63,9 @@ public class Worker(
                     item.TournamentName, item.TournamentId, item.CompletedRound);
 
                 await apiClient.RecalculateRatingsAsync(item.TournamentId, stoppingToken);
-                logger.LogInformation("Elo-reitingud on turniiri {Id} jaoks ümber arvutatud.", item.TournamentId);
-
                 await apiClient.GenerateNextRoundAsync(item.TournamentId, stoppingToken);
-                logger.LogInformation("Järgmine voor on turniiri {Id} jaoks moodustatud.", item.TournamentId);
+
+                logger.LogInformation("Turniir {Id}: Elo ja järgmine voor on töödeldud.", item.TournamentId);
             }
             catch (OperationCanceledException)
             {
@@ -74,6 +77,27 @@ public class Worker(
                     "Turniiri {Id} töötlemine ebaõnnestus. Proovitakse uuesti järgmisel käivitusel.",
                     item.TournamentId);
             }
+        }
+    }
+
+    private async Task SyncLichessAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            var summary = await apiClient.SyncLichessAsync(stoppingToken);
+            if (summary != null)
+            {
+                logger.LogInformation(
+                    "Lichess: {Created} uut, {Updated} uuendatud, {Finished} lõppenud, {Skipped} vahele jäetud, {Failed} viga.",
+                    summary.Created, summary.Updated, summary.Finished, summary.Skipped, summary.Failed);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Lichessi sünkroonimine ebaõnnestus.");
         }
     }
 }
