@@ -176,7 +176,9 @@ public class TournamentImportService(
         var externalId = $"lichess:{arena.Id}";
         var tournament = await tournaments.GetByExternalIdAsync(externalId);
 
-        if (tournament?.Status == TournamentStatus.Finished)
+        // Lõppenud arenat jätame vahele, kui sellel on juba võitja.
+        // Kui võitja puudub, uuendame turniiri ja määrame võitja.
+        if (tournament?.Status == TournamentStatus.Finished && tournament.WinnerId != null)
         {
             return SyncOutcome.Skipped;
         }
@@ -271,5 +273,8 @@ public class TournamentImportService(
         {
             entry.Rating = rating;
         }
-    }
+    }        if (tournament?.Status == TournamentStatus.Finished)
+        {
+            return SyncOutcome.Skipped;
+        }
 }
