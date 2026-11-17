@@ -46,12 +46,12 @@ function Navbar() {
                                     style={{ textDecoration: 'none' }}
                                     title="Ava minu profiil"
                                 >
-                                    <strong>{user.username}</strong>
+                                    <strong>{user.displayName || user.username}</strong>
                                     <span className="role-badge">{user.role}</span>
                                 </Link>
                             ) : (
                                 <div className="user-chip">
-                                    <strong>{user.username}</strong>
+                                    <strong>{user.displayName || user.username}</strong>
                                     <span className="role-badge">{user.role}</span>
                                 </div>
                             )}
