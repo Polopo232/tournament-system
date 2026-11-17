@@ -103,11 +103,12 @@ public class BracketService(
 
         if (winners.Count <= 1)
         {
-            tournament.Status = TournamentStatus.Finished;
+            var champion = winners.FirstOrDefault();
+            FinishTournament(tournament, champion);
             await tournaments.SaveChangesAsync();
 
-            logger.LogInformation("Turniir (ID: {TournamentId}) on lõppenud! Võitja ID: {WinnerId}",
-                tournament.Id, winners.FirstOrDefault()?.Id);
+            logger.LogInformation("Turniir (ID: {TournamentId}) on lõppenud! Võitja: {WinnerId}",
+                tournament.Id, champion?.Id);
 
             return [];
         }
@@ -162,10 +163,13 @@ public class BracketService(
 
         if (tournament.CurrentRound >= totalRounds)
         {
-            tournament.Status = TournamentStatus.Finished;
+            var champion = DetermineRoundRobinWinner(tournament);
+            FinishTournament(tournament, champion);
             await tournaments.SaveChangesAsync();
 
-            logger.LogInformation("RoundRobin turniir (ID: {TournamentId}) on lõppenud!", tournament.Id);
+            logger.LogInformation("RoundRobin turniir (ID: {TournamentId}) on lõppenud! Võitja: {WinnerId}",
+                tournament.Id, champion?.Id);
+
             return [];
         }
 
@@ -264,5 +268,48 @@ public class BracketService(
     private static int GetRating(User player, string game)
     {
         return player.Ratings.FirstOrDefault(r => r.Game == game)?.Rating ?? 1200;
+    }
+
+    private static void FinishTournament(Tournament tournament, User? winner)
+    {
+        tournament.Status = TournamentStatus.Finished;
+        tournament.WinnerId = winner?.Id;
+        tournament.Winner = winner;
+    }
+
+    /// <summary>
+    /// Победа 1 очко, ничья 0,5. Пропуски (bye) не считаются.
+    /// При равенстве очков выше тот, у кого лучший посев (меньший SeedNumber).
+    /// </summary>
+    private static User? DetermineRoundRobinWinner(Tournament tournament)
+    {
+        var points = tournament.Registrations.ToDictionary(r => r.PlayerId, _ => 0.0);
+
+        foreach (var m in tournament.Matches
+                     .Where(m => m.Status == MatchStatus.Completed && m.Player2Id != null))
+        {
+            int p2 = m.Player2Id!.Value;
+
+            if (m.WinnerId == m.Player1Id)
+            {
+                points[m.Player1Id] += 1;
+            }
+            else if (m.WinnerId == p2)
+            {
+                points[p2] += 1;
+            }
+            else
+            {
+                points[m.Player1Id] += 0.5;
+                points[p2] += 0.5;
+            }
+        }
+
+        var best = tournament.Registrations
+            .OrderByDescending(r => points.GetValueOrDefault(r.PlayerId))
+            .ThenBy(r => r.SeedNumber ?? int.MaxValue)
+            .FirstOrDefault();
+
+        return best?.Player;
     }
 }
