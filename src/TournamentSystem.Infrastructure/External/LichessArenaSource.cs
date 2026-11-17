@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using TournamentSystem.Application.Interfaces;
 
@@ -22,22 +23,13 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         var root = doc.RootElement;
 
-        var name = root.TryGetProperty("fullName", out var fullName)
-            ? fullName.GetString() ?? arenaId
-            : arenaId;
-
-        var finished = root.TryGetProperty("finished", out var finishedProp)
-            && finishedProp.ValueKind == JsonValueKind.True;
-
-        var startsAtMs = root.TryGetProperty("startsAt", out var startsAt)
-            ? startsAt.GetInt64()
-            : 0L;
+        var name = GetString(root, "fullName") ?? arenaId;
 
         return new ExternalArena(
             arenaId,
             name,
-            DateTimeOffset.FromUnixTimeMilliseconds(startsAtMs).UtcDateTime,
-            finished);
+            ParseStartsAt(root),
+            IsFinished(root));
     }
 
     public async Task<List<ExternalArenaResult>> GetResultsAsync(string arenaId, CancellationToken cancellationToken = default)
@@ -60,12 +52,54 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
             using var doc = JsonDocument.Parse(line);
             var item = doc.RootElement;
 
+            // Lichess uses "username" in results and "name" in arena standings, accept both
+            var username = GetString(item, "username") ?? GetString(item, "name");
+            if (string.IsNullOrWhiteSpace(username)) continue;
+
             results.Add(new ExternalArenaResult(
                 item.GetProperty("rank").GetInt32(),
-                item.GetProperty("username").GetString()!,
+                username,
                 item.GetProperty("score").GetInt32()));
         }
 
         return results;
     }
+
+    private static bool IsFinished(JsonElement root)
+    {
+        if (IsTrue(root, "finished") || IsTrue(root, "isFinished"))
+        {
+            return true;
+        }
+
+        // Fallback: the arena has started and no time is left
+        bool started = IsTrue(root, "isStarted");
+        bool noTimeLeft = !root.TryGetProperty("secondsToFinish", out var seconds)
+            || (seconds.ValueKind == JsonValueKind.Number && seconds.GetInt32() <= 0);
+
+        return started && noTimeLeft;
+    }
+
+    private static DateTime ParseStartsAt(JsonElement root)
+    {
+        if (!root.TryGetProperty("startsAt", out var value))
+        {
+            return DateTime.UtcNow;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => DateTimeOffset.FromUnixTimeMilliseconds(value.GetInt64()).UtcDateTime,
+            JsonValueKind.String => DateTimeOffset.Parse(value.GetString()!, CultureInfo.InvariantCulture).UtcDateTime,
+            _ => DateTime.UtcNow
+        };
+    }
+
+    private static bool IsTrue(JsonElement root, string property) =>
+        root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
+
+    private static string? GetString(JsonElement root, string property) =>
+        root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 }
