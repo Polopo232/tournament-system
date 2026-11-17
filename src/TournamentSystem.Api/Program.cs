@@ -11,6 +11,7 @@ using TournamentSystem.Api.Services;
 using TournamentSystem.Application.Interfaces;
 using TournamentSystem.Application.Services;
 using TournamentSystem.Infrastructure.Data;
+using TournamentSystem.Infrastructure.External;
 using TournamentSystem.Infrastructure.Repositories;
 using TournamentSystem.Infrastructure.Services;
 
@@ -36,6 +37,14 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddScoped<ITournamentService, TournamentService>();
 builder.Services.AddScoped<IBracketService, BracketService>();
+
+builder.Services.AddScoped<ITournamentImportService, TournamentImportService>();
+
+builder.Services.AddHttpClient<IExternalArenaSource, LichessArenaSource>(client =>
+{
+    client.BaseAddress = new Uri("https://lichess.org");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TournamentSystem/1.0 (school project)");
+});
 
 builder.Services.AddSingleton<EloCalculatorService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
