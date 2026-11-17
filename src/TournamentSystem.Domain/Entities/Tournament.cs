@@ -16,6 +16,12 @@ public class Tournament
     public int OrganizerId { get; set; }
     public User Organizer { get; set; } = null!;
 
+    /// <summary>
+    /// Turniiri võitja. Täidetakse, kui turniir lõpeb.
+    /// </summary>
+    public int? WinnerId { get; set; }
+    public User? Winner { get; set; }
+
     public List<Registration> Registrations { get; set; } = new();
     public List<Match> Matches { get; set; } = new();
 }

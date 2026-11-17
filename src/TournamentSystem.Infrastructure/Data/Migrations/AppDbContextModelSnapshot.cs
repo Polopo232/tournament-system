@@ -216,9 +216,14 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<int?>("WinnerId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizerId");
+
+                    b.HasIndex("WinnerId");
 
                     b.ToTable("Tournaments");
                 });
@@ -361,7 +366,14 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("TournamentSystem.Domain.Entities.User", "Winner")
+                        .WithMany()
+                        .HasForeignKey("WinnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Organizer");
+
+                    b.Navigation("Winner");
                 });
 
             modelBuilder.Entity("TournamentSystem.Domain.Entities.Tournament", b =>
