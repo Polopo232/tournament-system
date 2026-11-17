@@ -32,7 +32,12 @@ public class TournamentApiClient(
     public async Task AuthenticateAsync(CancellationToken cancellationToken)
     {
         var username = configuration["ApiSettings:Username"] ?? "service";
-        var password = configuration["ApiSettings:Password"] ?? "Service123!";
+        var password = configuration["ApiSettings:Password"];
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException(
+                "ApiSettings:Password is not set. Use: dotnet user-secrets set \"ApiSettings:Password\" \"<value>\" --project src/TournamentSystem.Worker");
+        }
 
         logger.LogInformation("Worker autendib API-s kasutajana '{Username}'...", username);
 
