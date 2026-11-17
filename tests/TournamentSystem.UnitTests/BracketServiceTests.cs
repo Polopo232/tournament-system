@@ -3,6 +3,7 @@ using Moq;
 using TournamentSystem.Application.Interfaces;
 using TournamentSystem.Application.Services;
 using TournamentSystem.Domain.Entities;
+using TournamentSystem.Application.DTOs;
 using Xunit;
 using Match = TournamentSystem.Domain.Entities.Match;
 
@@ -221,5 +222,21 @@ public class BracketServiceTests
         Assert.Equal(TournamentStatus.Finished, tournament.Status);
         Assert.Equal(p2.Id, tournament.WinnerId);
         Assert.Same(p2, tournament.Winner);
+    }
+
+    [Fact]
+    public async Task GenerateBracketAsync_NotifiesClientsAboutRoundOne()
+    {
+        var tournament = CreateTournamentWithPlayers(4);
+        _tournamentRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(tournament);
+
+        var result = await _bracketService.GenerateBracketAsync(1);
+
+        Assert.Equal(2, result.Count);
+        _notifierMock.Verify(n => n.NotifyRoundCreatedAsync(
+            1,
+            1,
+            It.Is<List<MatchDto>>(m => m.Count == 2)),
+            Times.Once);
     }
 }
