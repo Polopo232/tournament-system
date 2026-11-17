@@ -145,4 +145,33 @@ public class TournamentImportServiceTests
         Assert.Equal(1, result.Skipped);
         _arena.Verify(a => a.GetResultsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Sync_StoresLichessRatingUnderArenaCategory()
+    {
+        _arena.Setup(a => a.GetArenaListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalArenaSummary>
+            {
+                new("abcd1234", "Rapid 10", "rapid", 0, 30, DateTime.UtcNow, 600)
+            });
+
+        _tournaments.Setup(t => t.GetByExternalIdAsync("lichess:abcd1234"))
+            .ReturnsAsync((Tournament?)null);
+
+        _arena.Setup(a => a.GetResultsAsync("abcd1234", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalArenaResult> { new(1, "Magnus", 20, 1875) });
+
+        Tournament? saved = null;
+        _tournaments.Setup(t => t.Add(It.IsAny<Tournament>()))
+            .Callback<Tournament>(t => saved = t);
+
+        await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
+
+        Assert.NotNull(saved);
+        Assert.Equal("Chess (rapid)", saved!.Game);
+
+        var rating = saved.Registrations.Single().Player.Ratings.Single();
+        Assert.Equal("Chess (rapid)", rating.Game);
+        Assert.Equal(1875, rating.Rating);
+    }
 }
