@@ -138,7 +138,13 @@ public class TournamentImportServiceTests
             });
 
         _tournaments.Setup(t => t.GetByExternalIdAsync("lichess:abcd1234"))
-            .ReturnsAsync(new Tournament { Id = 7, Status = TournamentStatus.Finished, ExternalId = "lichess:abcd1234" });
+            .ReturnsAsync(new Tournament
+            {
+                Id = 7,
+                Status = TournamentStatus.Finished,
+                WinnerId = 3,
+                ExternalId = "lichess:abcd1234"
+            });
 
         var result = await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
 
