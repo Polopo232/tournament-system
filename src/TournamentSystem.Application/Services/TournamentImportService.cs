@@ -121,4 +121,121 @@ public class TournamentImportService(
 
         return candidate;
     }
+
+    private const int FinishedStatus = 30;
+
+    private enum SyncOutcome { Created, Updated, Finished, Skipped }
+
+    public async Task<LichessSyncResultDto> SyncLichessAsync(IReadOnlyList<string> perfKeys, int minutes, int actorId)
+    {
+        var arenas = await arenaSource.GetArenaListAsync();
+
+        var wanted = arenas
+            .Where(a => perfKeys.Contains(a.PerfKey, StringComparer.OrdinalIgnoreCase) && a.Minutes == minutes)
+            .ToList();
+
+        var result = new LichessSyncResultDto();
+
+        foreach (var arena in wanted)
+        {
+            if (!LichessIdPattern.IsMatch(arena.Id))
+            {
+                result.Skipped++;
+                continue;
+            }
+
+            try
+            {
+                switch (await SyncArenaAsync(arena, actorId))
+                {
+                    case SyncOutcome.Created: result.Created++; break;
+                    case SyncOutcome.Updated: result.Updated++; break;
+                    case SyncOutcome.Finished: result.Finished++; break;
+                    default: result.Skipped++; break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Viga ühes areenas ei peata teisi. Muudatused, mis jäid salvestamata, lähevad järgmise salvestusega kaasa.
+                result.Failed++;
+                logger.LogError(ex, "Lichessi arena {ArenaId} sünkroonimine ebaõnnestus.", arena.Id);
+            }
+        }
+
+        logger.LogInformation(
+            "Lichessi sünkroon: {Created} uut, {Updated} uuendatud, {Finished} lõppenud, {Skipped} vahele jäetud, {Failed} viga.",
+            result.Created, result.Updated, result.Finished, result.Skipped, result.Failed);
+
+        return result;
+    }
+
+    private async Task<SyncOutcome> SyncArenaAsync(ExternalArenaSummary arena, int actorId)
+    {
+        var externalId = $"lichess:{arena.Id}";
+        var tournament = await tournaments.GetByExternalIdAsync(externalId);
+
+        // Lõppenud arenat ei uuendata enam
+        if (tournament?.Status == TournamentStatus.Finished)
+        {
+            return SyncOutcome.Skipped;
+        }
+
+        var isFinished = arena.Status == FinishedStatus;
+        var results = await arenaSource.GetResultsAsync(arena.Id);
+        var isNew = tournament == null;
+
+        if (tournament == null)
+        {
+            tournament = new Tournament
+            {
+                Name = arena.Name,
+                Game = "Chess",
+                Description = $"Lichess arena · {arena.PerfKey} · {arena.Minutes} min",
+                Format = TournamentFormat.Arena,
+                Status = TournamentStatus.InProgress,
+                MaxPlayers = Math.Max(1, results.Count),
+                CurrentRound = 0,
+                StartDate = arena.StartsAt,
+                OrganizerId = actorId,
+                ExternalId = externalId
+            };
+
+            tournaments.Add(tournament);
+        }
+
+        foreach (var r in results.OrderBy(x => x.Rank))
+        {
+            var player = await GetOrCreateLichessPlayerAsync(r.Username);
+
+            var registration = tournament.Registrations
+                .FirstOrDefault(x => x.Player?.Username == player.Username);
+
+            if (registration == null)
+            {
+                registration = new Registration
+                {
+                    Player = player,
+                    RegisteredAt = arena.StartsAt
+                };
+                tournament.Registrations.Add(registration);
+            }
+
+            registration.FinalRank = r.Rank;
+            registration.Score = r.Score;
+        }
+
+        tournament.MaxPlayers = Math.Max(tournament.MaxPlayers, tournament.Registrations.Count);
+        tournament.LastSyncedAt = DateTime.UtcNow;
+
+        if (isFinished)
+        {
+            tournament.Status = TournamentStatus.Finished;
+            tournament.Winner = tournament.Registrations.FirstOrDefault(x => x.FinalRank == 1)?.Player;
+            await tournaments.SaveChangesAsync();
+            return SyncOutcome.Finished;
+        }
+
+        await tournaments.SaveChangesAsync();
+        return isNew ? SyncOutcome.Created : SyncOutcome.Updated;
+    }
 }

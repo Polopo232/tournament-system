@@ -95,6 +95,73 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
         };
     }
 
+    public async Task<List<ExternalArenaSummary>> GetArenaListAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await http.GetAsync("/api/tournament", cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        var list = new List<ExternalArenaSummary>();
+
+        foreach (var section in new[] { "created", "started", "finished" })
+        {
+            if (!doc.RootElement.TryGetProperty(section, out var items) || items.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var item in items.EnumerateArray())
+            {
+                var id = GetString(item, "id");
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                var perfKey = item.TryGetProperty("perf", out var perf)
+                    ? GetString(perf, "key") ?? string.Empty
+                    : string.Empty;
+
+                var minutes = item.TryGetProperty("minutes", out var m) && m.ValueKind == JsonValueKind.Number
+                    ? m.GetInt32()
+                    : 0;
+
+                // Lichess ei pruugi staatust nimekirjas täita, seega määrame selle sektsiooni järgi
+                var status = section == "finished"
+                    ? FinishedStatus
+                    : item.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.Number
+                        ? s.GetInt32()
+                        : 0;
+
+                list.Add(new ExternalArenaSummary(
+                    id,
+                    GetString(item, "name") ?? id,
+                    perfKey,
+                    minutes,
+                    status,
+                    ParseDate(item, "startsAt")));
+            }
+        }
+
+        return list;
+    }
+
+    private const int FinishedStatus = 30;
+
+    private static DateTime ParseDate(JsonElement root, string property)
+    {
+        if (!root.TryGetProperty(property, out var value))
+        {
+            return DateTime.UtcNow;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => DateTimeOffset.FromUnixTimeMilliseconds(value.GetInt64()).UtcDateTime,
+            JsonValueKind.String => DateTimeOffset.Parse(value.GetString()!, CultureInfo.InvariantCulture).UtcDateTime,
+            _ => DateTime.UtcNow
+        };
+    }
+
     private static bool IsTrue(JsonElement root, string property) =>
         root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;
 
