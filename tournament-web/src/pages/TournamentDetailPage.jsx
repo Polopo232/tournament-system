@@ -9,6 +9,7 @@ import {
     formatTournamentFormat,
     getStatusBadgeClass,
 } from '../utils/formatters';
+import { WinnerBanner } from '../components/WinnerBanner';
 
 export function TournamentDetailPage() {
     const { id } = useParams();
@@ -412,6 +413,7 @@ export function TournamentDetailPage() {
             {error && <div className="alert-error">{error}</div>}
 
             <div className="panel">
+                <WinnerBanner tournament={tournament} />
                 <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>
                     Registreerunud osalejad ({displayCount} / {maxP})
                 </h2>
