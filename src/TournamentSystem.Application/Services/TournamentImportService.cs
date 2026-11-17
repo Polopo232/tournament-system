@@ -182,7 +182,6 @@ public class TournamentImportService(
         {
             return SyncOutcome.Skipped;
         }
-
         var isFinished = arena.Status == FinishedStatus;
         var results = await arenaSource.GetResultsAsync(arena.Id);
         var isNew = tournament == null;
@@ -273,8 +272,5 @@ public class TournamentImportService(
         {
             entry.Rating = rating;
         }
-    }        if (tournament?.Status == TournamentStatus.Finished)
-        {
-            return SyncOutcome.Skipped;
-        }
+    }
 }
