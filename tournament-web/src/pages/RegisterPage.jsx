@@ -5,6 +5,7 @@ import { apiClient, saveAuthSession } from '../api/client';
 export function RegisterPage() {
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
+    const [displayName, setDisplayName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
@@ -16,8 +17,13 @@ export function RegisterPage() {
         e.preventDefault();
         setError(null);
 
-        if (!username.trim() || !email.trim() || !password.trim()) {
+        if (!username.trim() || !displayName.trim() || !email.trim() || !password.trim()) {
             setError('Kõik väljad on kohustuslikud.');
+            return;
+        }
+
+        if (displayName.trim().length < 3 || displayName.trim().length > 20) {
+            setError('Nick peab olema 3–20 tähemärki pikk.');
             return;
         }
 
@@ -35,6 +41,7 @@ export function RegisterPage() {
             setLoading(true);
             const response = await apiClient.post('/api/auth/register', {
                 username: username.trim(),
+                displayName: displayName.trim(),
                 email: email.trim(),
                 password,
             });
@@ -59,13 +66,24 @@ export function RegisterPage() {
 
                 <form onSubmit={handleSubmit} noValidate>
                     <div className="form-group">
-                        <label className="form-label">Kasutajanimi</label>
+                        <label className="form-label">Sisselogimise nimi</label>
                         <input
                             type="text"
                             className="input"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Vali unikaalne nimi"
+                            placeholder="Kasutajanimi sisselogimiseks"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Nick (avalik nimi)</label>
+                        <input
+                            type="text"
+                            className="input"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            placeholder="Nick, mida näevad teised (3–20 tähemärki)"
                         />
                     </div>
 
