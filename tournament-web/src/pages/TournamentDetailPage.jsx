@@ -424,7 +424,7 @@ export function TournamentDetailPage() {
                     <div className="participants-list">
                         {participants.map((p) => {
                             const playerId = p.playerId || p.userId || p.id;
-                            const playerName = p.username || p.playerName || `Mängija #${playerId}`;
+                            const playerName = p.displayName || p.username || p.playerName || `Mängija #${playerId}`;
                             const elo = p.rating ?? p.eloRating;
 
                             return (
