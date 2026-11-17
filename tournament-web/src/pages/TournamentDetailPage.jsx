@@ -64,6 +64,7 @@ export function TournamentDetailPage() {
                         const partRes = await apiClient.get(`/api/tournaments/${tournamentId}/participants`);
                         if (Array.isArray(partRes.data)) foundParticipants = partRes.data;
                     } catch {
+                        // участники не найдены по этому маршруту
                     }
                 }
             }
@@ -253,6 +254,18 @@ export function TournamentDetailPage() {
         }
     };
 
+    const handleNextRound = async () => {
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/ratings/recalculate`);
+            await apiClient.post(`/api/tournaments/${tournamentId}/rounds/next`);
+            setActionMsg('Järgmine voor on loodud!');
+            await loadTournament();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Järgmise vooru loomine ebaõnnestus.');
+        }
+    };
+
     const handleSaveResult = async (e) => {
         e.preventDefault();
         if (!selectedMatch) return;
@@ -331,6 +344,21 @@ export function TournamentDetailPage() {
         .map(Number)
         .sort((a, b) => a - b);
 
+    const currentRoundMatches = matches.filter((m) => m.round === tournament.currentRound);
+    const roundDone =
+        currentRoundMatches.length > 0 && currentRoundMatches.every((m) => m.status === 'Completed');
+
+    const playerCount = tournament.registeredPlayersCount ?? participants.length;
+    const totalRrRounds = (playerCount % 2 === 0 ? playerCount : playerCount + 1) - 1;
+
+    const isFinalReady =
+        tournament.format === 'SingleElimination'
+            ? currentRoundMatches.length === 1
+            : tournament.format === 'RoundRobin' && tournament.currentRound >= totalRrRounds;
+
+    const canFinish = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && isFinalReady;
+    const canNextRound = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && !isFinalReady;
+
     return (
         <div className="container">
             <Link to="/tournaments" className="back-link">
@@ -367,8 +395,13 @@ export function TournamentDetailPage() {
               </span>
                         )}
 
-                        {isAdminOrOrganizer && tournament.status === 'InProgress' && (
-                            <button onClick={handleFinishTournament} className="btn btn-primary" style={{ marginBottom: 16 }}>
+                        {canNextRound && (
+                            <button onClick={handleNextRound} className="btn btn-success">
+                                Genereeri järgmine voor
+                            </button>
+                        )}
+                        {canFinish && (
+                            <button onClick={handleFinishTournament} className="btn btn-primary">
                                 Lõpeta turniir
                             </button>
                         )}
