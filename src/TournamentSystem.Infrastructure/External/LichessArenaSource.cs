@@ -121,29 +121,41 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
                     ? GetString(perf, "key") ?? string.Empty
                     : string.Empty;
 
-                var minutes = item.TryGetProperty("minutes", out var m) && m.ValueKind == JsonValueKind.Number
-                    ? m.GetInt32()
+                var minutes = GetInt(item, "minutes");
+
+                var clockLimit = item.TryGetProperty("clock", out var clock)
+                    ? GetInt(clock, "limit")
                     : 0;
 
-                // Lichess ei pruugi staatust nimekirjas täita, seega määrame selle sektsiooni järgi
-                var status = section == "finished"
-                    ? FinishedStatus
-                    : item.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.Number
-                        ? s.GetInt32()
-                        : 0;
+                // Staatus määrame sektsiooni järgi, nimekirjas ei pruugi see alati olla
+                var status = section switch
+                {
+                    "created" => 10,
+                    "started" => 20,
+                    "finished" => FinishedStatus,
+                    _ => GetInt(item, "status")
+                };
+
+                var name = GetString(item, "fullName") ?? GetString(item, "name") ?? id;
 
                 list.Add(new ExternalArenaSummary(
                     id,
-                    GetString(item, "name") ?? id,
+                    name,
                     perfKey,
                     minutes,
                     status,
-                    ParseDate(item, "startsAt")));
+                    ParseDate(item, "startsAt"),
+                    clockLimit));
             }
         }
 
         return list;
     }
+
+    private static int GetInt(JsonElement root, string property) =>
+        root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Number
+            ? value.GetInt32()
+            : 0;
 
     private const int FinishedStatus = 30;
 

@@ -13,7 +13,8 @@ public record ExternalArenaSummary(
     string PerfKey,
     int Minutes,
     int Status,
-    DateTime StartsAt);
+    DateTime StartsAt,
+    int ClockLimitSeconds = 0);
 
 public interface IExternalArenaSource
 {

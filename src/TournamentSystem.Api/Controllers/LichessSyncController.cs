@@ -26,7 +26,7 @@ public class LichessSyncController(
     {
         var perfKeys = configuration.GetSection("LichessSync:PerfKeys").Get<string[]>()
             ?? new[] { "rapid" };
-        var minutes = configuration.GetValue<int?>("LichessSync:Minutes") ?? 10;
+        var minutes = configuration.GetValue<int?>("LichessSync:ClockMinutes") ?? 10;
 
         var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 

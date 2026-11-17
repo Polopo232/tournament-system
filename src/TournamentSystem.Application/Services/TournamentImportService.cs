@@ -131,7 +131,9 @@ public class TournamentImportService(
         var arenas = await arenaSource.GetArenaListAsync();
 
         var wanted = arenas
-            .Where(a => perfKeys.Contains(a.PerfKey, StringComparer.OrdinalIgnoreCase) && a.Minutes == minutes)
+            .Where(a => perfKeys.Contains(a.PerfKey, StringComparer.OrdinalIgnoreCase)
+                        && (a.Status == 20 || a.Status == FinishedStatus)
+                        && (minutes == 0 || a.ClockLimitSeconds == minutes * 60))
             .ToList();
 
         var result = new LichessSyncResultDto();
