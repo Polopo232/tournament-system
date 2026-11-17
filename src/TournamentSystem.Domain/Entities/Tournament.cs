@@ -19,10 +19,11 @@ public class Tournament
     public int? WinnerId { get; set; }
     public User? Winner { get; set; }
 
-    /// <summary>
-    /// Välise allika ID, näiteks "lichess:abcd1234". Tavalistel turniiridel on tühi.
-    /// </summary>
+    /// <summary>Välise allika ID, näiteks "lichess:abcd1234".</summary>
     public string? ExternalId { get; set; }
+
+    /// <summary>Viimane sünkroonimise aeg (Lichess arenade jaoks).</summary>
+    public DateTime? LastSyncedAt { get; set; }
 
     public List<Registration> Registrations { get; set; } = new();
     public List<Match> Matches { get; set; } = new();

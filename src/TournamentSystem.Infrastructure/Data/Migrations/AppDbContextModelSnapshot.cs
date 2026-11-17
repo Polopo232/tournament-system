@@ -207,6 +207,9 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("MaxPlayers")
                         .HasColumnType("int");
 
