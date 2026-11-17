@@ -10,6 +10,7 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
     public async Task<List<Tournament>> GetAllAsync()
     {
         return await db.Tournaments
+            .Include(t => t.Winner)
             .Include(t => t.Registrations)
                 .ThenInclude(r => r.Player)
                     .ThenInclude(p => p.Ratings)
@@ -28,6 +29,16 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
             .Include(t => t.Matches)
                 .ThenInclude(m => m.Player2)
             .FirstOrDefaultAsync(t => t.Id == id);
+    }
+
+    public async Task<Tournament?> GetByExternalIdAsync(string externalId)
+    {
+        return await db.Tournaments
+            .Include(t => t.Winner)
+            .Include(t => t.Registrations)
+                .ThenInclude(r => r.Player)
+                    .ThenInclude(p => p.Ratings)
+            .FirstOrDefaultAsync(t => t.ExternalId == externalId);
     }
 
     public async Task<bool> IsPlayerRegisteredAsync(int tournamentId, int playerId)
