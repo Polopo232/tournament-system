@@ -241,6 +241,18 @@ export function TournamentDetailPage() {
         setScore2(match.player2Score ?? 0);
     };
 
+    const handleFinishTournament = async () => {
+        if (!window.confirm('Kas oled kindel, et soovid turniiri lõpetada? Elo arvutatakse ümber.')) return;
+
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/finish`);
+            window.location.reload();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Turniiri lõpetamine ebaõnnestus.');
+        }
+    };
+
     const handleSaveResult = async (e) => {
         e.preventDefault();
         if (!selectedMatch) return;
@@ -355,6 +367,11 @@ export function TournamentDetailPage() {
               </span>
                         )}
 
+                        {isAdminOrOrganizer && tournament.status === 'InProgress' && (
+                            <button onClick={handleFinishTournament} className="btn btn-primary" style={{ marginBottom: 16 }}>
+                                Lõpeta turniir
+                            </button>
+                        )}
                         {isAdminOrOrganizer && isOpenForRegistration && matches.length === 0 && (
                             <button onClick={handleGenerateBracket} className="btn btn-success">
                                 Genereeri turniiritabel
