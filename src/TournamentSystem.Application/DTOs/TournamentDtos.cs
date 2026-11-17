@@ -123,6 +123,16 @@ public class TournamentDetailsDto
     public string? Description { get; set; }
     public string Format { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Võitja ID (null, kui turniir pole veel lõppenud).
+    /// </summary>
+    public int? WinnerId { get; set; }
+
+    /// <summary>
+    /// Võitja nick.
+    /// </summary>
+    public string? WinnerName { get; set; }
     public int MaxPlayers { get; set; }
     public int CurrentRound { get; set; }
     public DateTime StartDate { get; set; }
@@ -142,6 +152,8 @@ public class TournamentDetailsDto
             Description = t.Description,
             Format = t.Format.ToString(),
             Status = t.Status.ToString(),
+            WinnerId = t.WinnerId,
+            WinnerName = t.Winner?.DisplayName,
             MaxPlayers = t.MaxPlayers,
             CurrentRound = t.CurrentRound,
             StartDate = t.StartDate,

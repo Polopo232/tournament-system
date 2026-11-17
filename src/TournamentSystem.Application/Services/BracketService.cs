@@ -2,6 +2,7 @@
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Exceptions;
 using TournamentSystem.Application.Interfaces;
+using TournamentSystem.Application.Security;
 using TournamentSystem.Domain.Entities;
 
 namespace TournamentSystem.Application.Services;
@@ -12,10 +13,12 @@ public class BracketService(
     ITournamentNotifier notifier,
     ILogger<BracketService> logger) : IBracketService
 {
-    public async Task<List<MatchDto>> GenerateBracketAsync(int tournamentId)
+    public async Task<List<MatchDto>> GenerateBracketAsync(int tournamentId, CurrentUser? actor = null)
     {
         var tournament = await tournaments.GetByIdAsync(tournamentId)
             ?? throw new NotFoundException($"Tournament with ID {tournamentId} was not found.");
+
+        OwnershipRules.EnsureCanManage(actor, tournament);
 
         if (tournament.Status != TournamentStatus.Registration)
         {
@@ -58,10 +61,12 @@ public class BracketService(
         return createdMatches.Select(MatchDto.FromEntity).ToList();
     }
 
-    public async Task<List<MatchDto>> GenerateNextRoundAsync(int tournamentId)
+    public async Task<List<MatchDto>> GenerateNextRoundAsync(int tournamentId, CurrentUser? actor = null)
     {
         var tournament = await tournaments.GetByIdAsync(tournamentId)
             ?? throw new NotFoundException($"Tournament with ID {tournamentId} was not found.");
+
+        OwnershipRules.EnsureCanManage(actor, tournament);
 
         if (tournament.Status != TournamentStatus.InProgress)
         {
@@ -92,8 +97,8 @@ public class BracketService(
     }
 
     private async Task<List<MatchDto>> HandleNextSingleEliminationRoundAsync(
-    Tournament tournament,
-    List<Match> currentRoundMatches)
+        Tournament tournament,
+        List<Match> currentRoundMatches)
     {
         var winners = currentRoundMatches
             .Select(m => m.Winner ?? (m.WinnerId == m.Player1Id ? m.Player1 : m.Player2))
@@ -103,11 +108,12 @@ public class BracketService(
 
         if (winners.Count <= 1)
         {
-            tournament.Status = TournamentStatus.Finished;
+            var champion = winners.FirstOrDefault();
+            FinishTournament(tournament, champion);
             await tournaments.SaveChangesAsync();
 
-            logger.LogInformation("Turniir (ID: {TournamentId}) on lõppenud! Võitja ID: {WinnerId}",
-                tournament.Id, winners.FirstOrDefault()?.Id);
+            logger.LogInformation("Turniir (ID: {TournamentId}) on lõppenud! Võitja: {WinnerId}",
+                tournament.Id, champion?.Id);
 
             return [];
         }
@@ -149,8 +155,8 @@ public class BracketService(
 
     private async Task<List<MatchDto>> HandleNextRoundRobinRoundAsync(Tournament tournament)
     {
-        // The order is determined by SeedNumber, not by the current ranking.
-        // For tournaments created before this migration, SeedNumber is empty, so we place them at the end based on their ID.
+        // Order is taken from SeedNumber, not from the current rating.
+        // Tournaments created before SeedNumber existed have no seed, so they go last, by PlayerId.
         var seededPlayers = tournament.Registrations
             .OrderBy(r => r.SeedNumber ?? int.MaxValue)
             .ThenBy(r => r.PlayerId)
@@ -162,10 +168,13 @@ public class BracketService(
 
         if (tournament.CurrentRound >= totalRounds)
         {
-            tournament.Status = TournamentStatus.Finished;
+            var champion = DetermineRoundRobinWinner(tournament);
+            FinishTournament(tournament, champion);
             await tournaments.SaveChangesAsync();
 
-            logger.LogInformation("RoundRobin turniir (ID: {TournamentId}) on lõppenud!", tournament.Id);
+            logger.LogInformation("RoundRobin turniir (ID: {TournamentId}) on lõppenud! Võitja: {WinnerId}",
+                tournament.Id, champion?.Id);
+
             return [];
         }
 
@@ -264,5 +273,48 @@ public class BracketService(
     private static int GetRating(User player, string game)
     {
         return player.Ratings.FirstOrDefault(r => r.Game == game)?.Rating ?? 1200;
+    }
+
+    private static void FinishTournament(Tournament tournament, User? winner)
+    {
+        tournament.Status = TournamentStatus.Finished;
+        tournament.WinnerId = winner?.Id;
+        tournament.Winner = winner;
+    }
+
+    /// <summary>
+    /// Win = 1 point, draw = 0.5 points. Byes are not counted.
+    /// On equal points the player with the better seed (lower SeedNumber) wins.
+    /// </summary>
+    private static User? DetermineRoundRobinWinner(Tournament tournament)
+    {
+        var points = tournament.Registrations.ToDictionary(r => r.PlayerId, _ => 0.0);
+
+        foreach (var m in tournament.Matches
+                     .Where(m => m.Status == MatchStatus.Completed && m.Player2Id != null))
+        {
+            int p2 = m.Player2Id!.Value;
+
+            if (m.WinnerId == m.Player1Id)
+            {
+                points[m.Player1Id] += 1;
+            }
+            else if (m.WinnerId == p2)
+            {
+                points[p2] += 1;
+            }
+            else
+            {
+                points[m.Player1Id] += 0.5;
+                points[p2] += 0.5;
+            }
+        }
+
+        var best = tournament.Registrations
+            .OrderByDescending(r => points.GetValueOrDefault(r.PlayerId))
+            .ThenBy(r => r.SeedNumber ?? int.MaxValue)
+            .FirstOrDefault();
+
+        return best?.Player;
     }
 }

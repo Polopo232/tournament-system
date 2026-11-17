@@ -2,6 +2,7 @@
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Exceptions;
 using TournamentSystem.Application.Interfaces;
+using TournamentSystem.Application.Security;
 using TournamentSystem.Domain.Entities;
 
 namespace TournamentSystem.Application.Services;
@@ -12,10 +13,18 @@ public class MatchService(
     ITournamentNotifier notifier,
     ILogger<MatchService> logger) : IMatchService
 {
-    public async Task<MatchResultResponseDto> SubmitResultAsync(int matchId, SubmitMatchResultDto dto)
+    public async Task<MatchResultResponseDto> SubmitResultAsync(
+        int matchId,
+        SubmitMatchResultDto dto,
+        CurrentUser? actor = null)
     {
         var match = await matches.GetByIdAsync(matchId)
             ?? throw new NotFoundException($"ID-ga {matchId} vastet ei leitud.");
+
+        var tournament = await tournaments.GetByIdAsync(match.TournamentId)
+            ?? throw new NotFoundException($"Turniiri ID-ga {match.TournamentId} ei leitud.");
+
+        OwnershipRules.EnsureCanManage(actor, tournament);
 
         if (match.Status == MatchStatus.Completed)
         {
@@ -26,9 +35,6 @@ public class MatchService(
         {
             throw new ValidationException("Vaba vooru tulemust ei saa esitada.");
         }
-
-        var tournament = await tournaments.GetByIdAsync(match.TournamentId)
-            ?? throw new NotFoundException($"Turniiri ID-ga {match.TournamentId} ei leitud.");
 
         if (tournament.Format == TournamentFormat.SingleElimination && dto.Player1Score == dto.Player2Score)
         {

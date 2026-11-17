@@ -2,6 +2,7 @@
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Exceptions;
 using TournamentSystem.Application.Interfaces;
+using TournamentSystem.Application.Security;
 using TournamentSystem.Domain.Entities;
 using static TournamentSystem.Application.DTOs.TournamentDetailsDto;
 
@@ -102,10 +103,11 @@ public class TournamentService(
         return TournamentDetailsDto.FromEntity(tournament);
     }
 
-    public async Task<TournamentDetailsDto> UpdateAsync(int id, UpdateTournamentDto dto)
+    public async Task<TournamentDetailsDto> UpdateAsync(int id, UpdateTournamentDto dto, CurrentUser? actor = null)
     {
         var tournament = await tournaments.GetByIdAsync(id)
             ?? throw new NotFoundException($"Tournament with ID {id} was not found.");
+        OwnershipRules.EnsureCanManage(actor, tournament);
 
         if (dto.MaxPlayers < 2 || dto.MaxPlayers % 2 != 0)
         {
@@ -136,15 +138,17 @@ public class TournamentService(
         return TournamentDetailsDto.FromEntity(tournament);
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, CurrentUser? actor = null)
     {
         var tournament = await tournaments.GetByIdAsync(id)
             ?? throw new NotFoundException($"Tournament with ID {id} was not found.");
 
+        OwnershipRules.EnsureCanManage(actor, tournament);
+
         tournaments.Remove(tournament);
         await tournaments.SaveChangesAsync();
 
-        logger.LogInformation("Turniir (ID: {Id}) kustutatud", id);
+        logger.LogInformation("Turniir (ID: {Id}) kustutatud, kasutaja {UserId}", id, actor?.Id);
     }
 
     public async Task<RegistrationDto> RegisterPlayerAsync(int tournamentId, int playerId)

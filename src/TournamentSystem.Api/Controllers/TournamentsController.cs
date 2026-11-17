@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Interfaces;
+using TournamentSystem.Application.Security;
 using TournamentSystem.Application.Services;
 using static TournamentSystem.Application.DTOs.TournamentDetailsDto;
 
@@ -84,7 +85,7 @@ public class TournamentsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TournamentDetailsDto>> Update(int id, UpdateTournamentDto dto)
     {
-        var updated = await tournamentService.UpdateAsync(id, dto);
+        var updated = await tournamentService.UpdateAsync(id, dto, GetCurrentUser());
         return Ok(updated);
     }
 
@@ -100,7 +101,7 @@ public class TournamentsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
-        await tournamentService.DeleteAsync(id);
+        await tournamentService.DeleteAsync(id, GetCurrentUser());
         return NoContent();
     }
 
@@ -144,7 +145,7 @@ public class TournamentsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<MatchDto>>> GenerateBracket(int id)
     {
-        var matches = await bracketService.GenerateBracketAsync(id);
+        var matches = await bracketService.GenerateBracketAsync(id, GetCurrentUser());
         return Ok(matches);
     }
 
@@ -166,7 +167,7 @@ public class TournamentsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<MatchDto>>> GenerateNextRound(int id)
     {
-        var nextMatches = await bracketService.GenerateNextRoundAsync(id);
+        var nextMatches = await bracketService.GenerateNextRoundAsync(id, GetCurrentUser());
         return Ok(nextMatches);
     }
 
@@ -195,7 +196,14 @@ public class TournamentsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RecalculateRatings(int id)
     {
-        await ratingService.RecalculateTournamentRatingsAsync(id);
+        await ratingService.RecalculateTournamentRatingsAsync(id, GetCurrentUser());
         return NoContent();
+    }
+
+    private CurrentUser GetCurrentUser()
+    {
+        var id = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var role = User.FindFirstValue(ClaimTypes.Role)!;
+        return new CurrentUser(id, role);
     }
 }

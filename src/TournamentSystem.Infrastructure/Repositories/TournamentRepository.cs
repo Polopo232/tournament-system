@@ -19,6 +19,7 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
     public async Task<Tournament?> GetByIdAsync(int id)
     {
         return await db.Tournaments
+            .Include(t => t.Winner)
             .Include(t => t.Registrations)
                 .ThenInclude(r => r.Player)
                     .ThenInclude(p => p.Ratings)

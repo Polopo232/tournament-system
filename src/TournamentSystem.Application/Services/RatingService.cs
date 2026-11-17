@@ -2,6 +2,7 @@
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Exceptions;
 using TournamentSystem.Application.Interfaces;
+using TournamentSystem.Application.Security;
 using TournamentSystem.Domain.Entities;
 
 namespace TournamentSystem.Application.Services;
@@ -51,10 +52,11 @@ public class RatingService(
         return result;
     }
 
-    public async Task RecalculateTournamentRatingsAsync(int tournamentId)
+    public async Task RecalculateTournamentRatingsAsync(int tournamentId, CurrentUser? actor = null)
     {
         var tournament = await tournaments.GetByIdAsync(tournamentId)
             ?? throw new NotFoundException($"Tournament with ID {tournamentId} was not found.");
+        OwnershipRules.EnsureCanManage(actor, tournament);
 
         var matchesToProcess = tournament.Matches
             .Where(m => m.Status == MatchStatus.Completed && !m.RatingsUpdated)

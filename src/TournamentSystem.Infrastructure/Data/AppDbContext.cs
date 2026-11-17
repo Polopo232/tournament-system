@@ -45,6 +45,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(t => t.Format).HasConversion<string>().HasMaxLength(30);
             entity.Property(t => t.Status).HasConversion<string>().HasMaxLength(30);
 
+            entity.HasOne(t => t.Winner)
+                .WithMany()
+                .HasForeignKey(t => t.WinnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(t => t.Organizer)
                 .WithMany(u => u.OrganizedTournaments)
                 .HasForeignKey(t => t.OrganizerId)
