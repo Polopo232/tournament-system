@@ -12,6 +12,33 @@ import {
 import { apiClient } from '../api/client';
 import { formatDiscipline } from '../utils/formatters';
 
+function EloTooltip({ active, payload }) {
+    if (!active || !payload || payload.length === 0) return null;
+    const point = payload[0].payload;
+
+    return (
+        <div className="panel" style={{ padding: 12, minWidth: 200 }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{point.rating}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {new Date(point.time).toLocaleString('et-EE')}
+            </div>
+            {point.tournamentName && (
+                <div style={{ marginTop: 6, fontSize: 13 }}>{point.tournamentName}</div>
+            )}
+            {point.change !== undefined && (
+                <div
+                    style={{
+                        color: point.change >= 0 ? 'var(--success)' : 'var(--danger)',
+                        fontWeight: 700,
+                    }}
+                >
+                    {point.change >= 0 ? `+${point.change}` : point.change}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function PlayerProfilePage() {
     const { id } = useParams();
     const [profile, setProfile] = useState(null);
@@ -44,18 +71,30 @@ export function PlayerProfilePage() {
         load();
     }, [id]);
 
-    const gameHistory = useMemo(() => {
-        const items = history.filter((h) => h.game === selectedGame);
-        if (items.length === 0) return [];
+    const gameItems = useMemo(
+        () => history.filter((h) => h.game === selectedGame),
+        [history, selectedGame]
+    );
 
-        const label = (value) => new Date(value).toLocaleDateString('et-EE');
-        const first = items[0];
+    const chartData = useMemo(() => {
+        if (gameItems.length === 0) return [];
 
-        return [
-            { date: label(first.createdAt), rating: first.oldRating },
-            ...items.map((h) => ({ date: label(h.createdAt), rating: h.newRating })),
-        ];
-    }, [history, selectedGame]);
+        const first = gameItems[0];
+        const start = {
+            time: new Date(first.createdAt).getTime() - 1,
+            rating: first.oldRating,
+            tournamentName: 'Algseis',
+        };
+
+        const points = gameItems.map((h) => ({
+            time: new Date(h.createdAt).getTime(),
+            rating: h.newRating,
+            change: h.ratingChange,
+            tournamentName: h.tournamentName || (h.tournamentId ? `Turniir #${h.tournamentId}` : null),
+        }));
+
+        return [start, ...points];
+    }, [gameItems]);
 
     const selectedRating = profile?.ratings.find((r) => r.game === selectedGame)?.rating;
 
@@ -116,24 +155,30 @@ export function PlayerProfilePage() {
                     <div className="panel" style={{ marginBottom: 20 }}>
                         <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Elo graafik</h2>
 
-                        {gameHistory.length === 0 ? (
+                        {chartData.length === 0 ? (
                             <p style={{ margin: 0, color: 'var(--text-muted)' }}>
                                 Selles mängus pole veel reitingu muutusi.
                             </p>
                         ) : (
                             <div style={{ width: '100%', height: 300 }}>
                                 <ResponsiveContainer>
-                                    <LineChart data={gameHistory}>
+                                    <LineChart data={chartData}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="date" />
+                                        <XAxis
+                                            dataKey="time"
+                                            type="number"
+                                            domain={['dataMin', 'dataMax']}
+                                            tickFormatter={(v) => new Date(v).toLocaleDateString('et-EE')}
+                                        />
                                         <YAxis domain={['auto', 'auto']} />
-                                        <Tooltip />
+                                        <Tooltip content={<EloTooltip />} />
                                         <Line
                                             type="monotone"
                                             dataKey="rating"
                                             stroke="var(--primary)"
                                             strokeWidth={2}
                                             dot={{ r: 3 }}
+                                            activeDot={{ r: 6 }}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -144,9 +189,9 @@ export function PlayerProfilePage() {
                     <div className="panel">
                         <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Mängude ajalugu</h2>
 
-                        {gameHistory.length <= 1 ? (
+                        {gameItems.length === 0 ? (
                             <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                                Mänge selles kategoorias pole veel.
+                                Selles kategoorias pole veel mänge.
                             </p>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>
@@ -154,29 +199,37 @@ export function PlayerProfilePage() {
                                     <thead>
                                         <tr>
                                             <th>Kuupäev</th>
+                                            <th>Turniir</th>
                                             <th>Vana Elo</th>
                                             <th>Uus Elo</th>
                                             <th>Muutus</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {history
-                                            .filter((h) => h.game === selectedGame)
-                                            .map((h) => (
-                                                <tr key={h.id}>
-                                                    <td>{new Date(h.createdAt).toLocaleString('et-EE')}</td>
-                                                    <td>{h.oldRating}</td>
-                                                    <td><strong>{h.newRating}</strong></td>
-                                                    <td
-                                                        style={{
-                                                            color: h.ratingChange >= 0 ? 'var(--success)' : 'var(--danger)',
-                                                            fontWeight: 700,
-                                                        }}
-                                                    >
-                                                        {h.ratingChange >= 0 ? `+${h.ratingChange}` : h.ratingChange}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                        {gameItems.map((h) => (
+                                            <tr key={h.id}>
+                                                <td>{new Date(h.createdAt).toLocaleString('et-EE')}</td>
+                                                <td>
+                                                    {h.tournamentId ? (
+                                                        <Link to={`/tournaments/${h.tournamentId}`}>
+                                                            {h.tournamentName || `Turniir #${h.tournamentId}`}
+                                                        </Link>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </td>
+                                                <td>{h.oldRating}</td>
+                                                <td><strong>{h.newRating}</strong></td>
+                                                <td
+                                                    style={{
+                                                        color: h.ratingChange >= 0 ? 'var(--success)' : 'var(--danger)',
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
+                                                    {h.ratingChange >= 0 ? `+${h.ratingChange}` : h.ratingChange}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
