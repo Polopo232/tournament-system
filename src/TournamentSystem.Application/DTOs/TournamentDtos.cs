@@ -23,6 +23,7 @@ public class TournamentQueryParams
     public string? Search { get; set; }
     public string? Status { get; set; }
     public string? Discipline { get; set; }
+    public string? Format { get; set; }
     public string? SortBy { get; set; }
 
     [Range(1, int.MaxValue)]

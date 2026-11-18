@@ -32,8 +32,16 @@ public class TournamentService(
 
         if (!string.IsNullOrWhiteSpace(queryParams.Discipline))
         {
+            var discipline = queryParams.Discipline.Trim();
             filtered = filtered.Where(t =>
-                t.Game.Equals(queryParams.Discipline, StringComparison.OrdinalIgnoreCase));
+                t.Game.Equals(discipline, StringComparison.OrdinalIgnoreCase)
+                || t.Game.StartsWith(discipline + " (", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryParams.Format))
+        {
+            filtered = filtered.Where(t =>
+                t.Format.ToString().Equals(queryParams.Format, StringComparison.OrdinalIgnoreCase));
         }
 
         filtered = queryParams.SortBy?.ToLowerInvariant() switch
@@ -42,6 +50,7 @@ public class TournamentService(
             "name_desc" => filtered.OrderByDescending(t => t.Name),
             "maxplayers" => filtered.OrderBy(t => t.MaxPlayers),
             "startdate" => filtered.OrderBy(t => t.StartDate),
+            "participants" => filtered.OrderByDescending(t => t.Registrations.Count),
             _ => filtered.OrderByDescending(t => t.StartDate)
         };
 
