@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as signalR from '@microsoft/signalr';
 import { apiClient, getStoredToken, getStoredUser } from '../api/client';
@@ -10,6 +10,7 @@ import {
     getStatusBadgeClass,
 } from '../utils/formatters';
 import { WinnerBanner } from '../components/WinnerBanner';
+import { LiveDuels } from '../components/LiveDuels';
 
 export function TournamentDetailPage() {
     const { id } = useParams();
@@ -18,9 +19,6 @@ export function TournamentDetailPage() {
     const user = getStoredUser();
 
     const [tournament, setTournament] = useState(null);
-    const [participantsList, setParticipantsList] = useState([]);
-    const [registeredOverride, setRegisteredOverride] = useState(false);
-
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [actionMsg, setActionMsg] = useState(null);
@@ -31,6 +29,7 @@ export function TournamentDetailPage() {
     const [submittingScore, setSubmittingScore] = useState(false);
 
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [savingEdit, setSavingEdit] = useState(false);
     const [editForm, setEditForm] = useState({
         name: '',
         game: 'CS2',
@@ -39,37 +38,13 @@ export function TournamentDetailPage() {
         maxPlayers: 8,
         startDate: '',
     });
-    const [savingEdit, setSavingEdit] = useState(false);
 
+    // Laadime turniiri andmed. Backend tagastab osalejad ja mängud samas vastuses.
     const loadTournament = useCallback(async () => {
         try {
             setError(null);
             const response = await apiClient.get(`/api/tournaments/${tournamentId}`);
-            const data = response.data;
-            setTournament(data);
-
-            let foundParticipants =
-                data.participants ||
-                data.registrations ||
-                data.players ||
-                data.registeredPlayers ||
-                [];
-
-            if (foundParticipants.length === 0) {
-                try {
-                    const regRes = await apiClient.get(`/api/tournaments/${tournamentId}/registrations`);
-                    if (Array.isArray(regRes.data)) foundParticipants = regRes.data;
-                } catch {
-                    try {
-                        const partRes = await apiClient.get(`/api/tournaments/${tournamentId}/participants`);
-                        if (Array.isArray(partRes.data)) foundParticipants = partRes.data;
-                    } catch {
-                        // участники не найдены по этому маршруту
-                    }
-                }
-            }
-
-            setParticipantsList(foundParticipants);
+            setTournament(response.data);
         } catch {
             setError('Turniiri andmete laadimine ebaõnnestus.');
         } finally {
@@ -81,9 +56,10 @@ export function TournamentDetailPage() {
         loadTournament();
     }, [loadTournament]);
 
+    // Reaalajas uuendused: tulemused ja uued voorud
     useEffect(() => {
         const token = getStoredToken();
-        if (!token || !tournamentId) return;
+        if (!token || !tournamentId) return undefined;
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl('http://localhost:5000/ws/tournament', {
@@ -97,7 +73,7 @@ export function TournamentDetailPage() {
             if (!updatedMatch) return;
 
             setTournament((prev) => {
-                if (!prev || !prev.matches) return prev;
+                if (!prev?.matches) return prev;
                 return {
                     ...prev,
                     matches: prev.matches.map((m) =>
@@ -118,42 +94,28 @@ export function TournamentDetailPage() {
 
         return () => {
             if (connection.state === signalR.HubConnectionState.Connected) {
-                connection.invoke('LeaveTournament', tournamentId).catch(() => {});
+                connection.invoke('LeaveTournament', tournamentId).catch(() => { });
             }
             connection.stop();
         };
     }, [tournamentId, loadTournament]);
 
+    // Lichessi arena: käimasolevad mängud ja tabel uuenevad iga 30 sekundi järel
+    useEffect(() => {
+        if (tournament?.format !== 'Arena' || tournament?.status !== 'InProgress') return undefined;
+        const timer = setInterval(loadTournament, 30000);
+        return () => clearInterval(timer);
+    }, [tournament?.format, tournament?.status, loadTournament]);
+
     const handleRegister = async () => {
         try {
             setActionMsg(null);
             setError(null);
-            try {
-                await apiClient.post(`/api/tournaments/${tournamentId}/register`);
-            } catch (firstErr) {
-                if (firstErr.response?.status === 404 || firstErr.response?.status === 405) {
-                    await apiClient.post(`/api/tournaments/${tournamentId}/registrations`);
-                } else {
-                    throw firstErr;
-                }
-            }
-            setRegisteredOverride(true);
+            await apiClient.post(`/api/tournaments/${tournamentId}/registrations`);
             setActionMsg('Oled edukalt turniirile registreeritud!');
             await loadTournament();
         } catch (err) {
-            const msg =
-                err.response?.data?.detail ||
-                err.response?.data?.message ||
-                err.response?.data?.title ||
-                'Registreerimine ebaõnnestus.';
-
-            if (msg.toLowerCase().includes('already registered')) {
-                setRegisteredOverride(true);
-                setActionMsg('Oled juba sellele turniirile registreeritud!');
-                await loadTournament();
-            } else {
-                setError(msg);
-            }
+            setError(err.response?.data?.detail || 'Registreerimine ebaõnnestus.');
         }
     };
 
@@ -161,41 +123,49 @@ export function TournamentDetailPage() {
         try {
             setActionMsg(null);
             setError(null);
-            try {
-                await apiClient.post(`/api/tournaments/${tournamentId}/bracket`);
-            } catch (firstErr) {
-                if (firstErr.response?.status === 404 || firstErr.response?.status === 405) {
-                    await apiClient.post(`/api/tournaments/${tournamentId}/start`);
-                } else {
-                    throw firstErr;
-                }
-            }
+            await apiClient.post(`/api/tournaments/${tournamentId}/bracket`);
             setActionMsg('Turniiritabel on edukalt genereeritud!');
             await loadTournament();
         } catch (err) {
-            const msg =
-                err.response?.data?.detail ||
-                err.response?.data?.message ||
-                'Turniiritabeli loomine ebaõnnestus.';
-            setError(msg);
+            setError(err.response?.data?.detail || 'Turniiritabeli loomine ebaõnnestus.');
+        }
+    };
+
+    const handleNextRound = async () => {
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/ratings/recalculate`);
+            await apiClient.post(`/api/tournaments/${tournamentId}/rounds/next`);
+            setActionMsg('Järgmine voor on loodud!');
+            await loadTournament();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Järgmise vooru loomine ebaõnnestus.');
+        }
+    };
+
+    const handleFinishTournament = async () => {
+        if (!window.confirm('Kas oled kindel, et soovid turniiri lõpetada? Elo arvutatakse ümber.')) return;
+        try {
+            setError(null);
+            await apiClient.post(`/api/tournaments/${tournamentId}/finish`);
+            await loadTournament();
+            setActionMsg('Turniir on lõpetatud!');
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Turniiri lõpetamine ebaõnnestus.');
         }
     };
 
     const openEditModal = () => {
         if (!tournament) return;
-        const rawGame = tournament.game || tournament.discipline || 'CS2';
-        const rawMax = tournament.maxPlayers ?? tournament.maxParticipants ?? 8;
-        const isoDate = tournament.startDate
-            ? new Date(tournament.startDate).toISOString().slice(0, 16)
-            : '';
-
         setEditForm({
             name: tournament.name || '',
-            game: rawGame,
+            game: tournament.game || 'CS2',
             description: tournament.description || '',
             format: tournament.format || 'SingleElimination',
-            maxPlayers: rawMax,
-            startDate: isoDate,
+            maxPlayers: tournament.maxPlayers ?? 8,
+            startDate: tournament.startDate
+                ? new Date(tournament.startDate).toISOString().slice(0, 16)
+                : '',
         });
         setIsEditOpen(true);
     };
@@ -242,34 +212,9 @@ export function TournamentDetailPage() {
         setScore2(match.player2Score ?? 0);
     };
 
-    const handleFinishTournament = async () => {
-        if (!window.confirm('Kas oled kindel, et soovid turniiri lõpetada? Elo arvutatakse ümber.')) return;
-
-        try {
-            setError(null);
-            await apiClient.post(`/api/tournaments/${tournamentId}/finish`);
-            window.location.reload();
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Turniiri lõpetamine ebaõnnestus.');
-        }
-    };
-
-    const handleNextRound = async () => {
-        try {
-            setError(null);
-            await apiClient.post(`/api/tournaments/${tournamentId}/ratings/recalculate`);
-            await apiClient.post(`/api/tournaments/${tournamentId}/rounds/next`);
-            setActionMsg('Järgmine voor on loodud!');
-            await loadTournament();
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Järgmise vooru loomine ebaõnnestus.');
-        }
-    };
-
     const handleSaveResult = async (e) => {
         e.preventDefault();
         if (!selectedMatch) return;
-
         try {
             setSubmittingScore(true);
             setError(null);
@@ -286,6 +231,33 @@ export function TournamentDetailPage() {
         }
     };
 
+    // Kõik arvutatud väärtused on komponendi tasemel, nii et neid näeb igal pool
+    const participants = useMemo(() => tournament?.registrations ?? [], [tournament]);
+    const matches = useMemo(() => tournament?.matches ?? [], [tournament]);
+
+    const role = (user?.role || '').toLowerCase();
+    const isAdminOrOrganizer = role === 'organizer' || role === 'admin';
+    const isPlayer = role === 'player';
+
+    const alreadyRegistered = useMemo(() => {
+        if (!user) return false;
+        return participants.some(
+            (p) => Number(p.playerId) === Number(user.id)
+                || p.username?.toLowerCase() === user.username?.toLowerCase()
+        );
+    }, [participants, user]);
+
+    const roundsMap = useMemo(() => {
+        return matches.reduce((acc, match) => {
+            const r = match.round || 1;
+            if (!acc[r]) acc[r] = [];
+            acc[r].push(match);
+            return acc;
+        }, {});
+    }, [matches]);
+
+    const roundNumbers = Object.keys(roundsMap).map(Number).sort((a, b) => a - b);
+
     if (loading) {
         return (
             <div className="container">
@@ -298,81 +270,53 @@ export function TournamentDetailPage() {
         return (
             <div className="container">
                 <div className="alert-error">Turniiri ei leitud.</div>
-                <Link to="/tournaments" className="btn btn-outline">
-                    Tagasi turniiride nimekirja
-                </Link>
+                <Link to="/tournaments" className="btn btn-outline">Tagasi turniiride nimekirja</Link>
             </div>
         );
     }
 
-    const rawGame = tournament.game || tournament.discipline;
-    const maxP = tournament.maxPlayers ?? tournament.maxParticipants ?? 0;
-    const participants = participantsList;
-    const displayCount = Math.max(
-        participants.length,
-        tournament.currentParticipantsCount ??
-        tournament.participantsCount ??
-        tournament.registeredCount ??
-        0
-    );
-    const matches = tournament.matches || [];
+    const isArena = tournament.format === 'Arena';
+    const isOpenForRegistration = tournament.status === 'Registration';
+    const isInProgress = tournament.status === 'InProgress';
+    const maxP = tournament.maxPlayers ?? 0;
+    const displayCount = participants.length;
 
-    const role = (user?.role || '').toLowerCase();
-    const isAdminOrOrganizer = role === 'organizer' || role === 'admin';
-    const isPlayer = role === 'player';
-
-    const isOpenForRegistration =
-        tournament.status === 'Registration' || tournament.status === 'Open';
-
-    const alreadyRegistered =
-        registeredOverride ||
-        (user &&
-            participants.some(
-                (p) =>
-                    Number(p.playerId || p.userId || p.id) === Number(user.id) ||
-                    (p.username && p.username.toLowerCase() === user.username?.toLowerCase()) ||
-                    (p.playerName && p.playerName.toLowerCase() === user.username?.toLowerCase())
-            ));
-
-    const roundsMap = matches.reduce((acc, match) => {
-        const r = match.round || 1;
-        if (!acc[r]) acc[r] = [];
-        acc[r].push(match);
-        return acc;
-    }, {});
-    const roundNumbers = Object.keys(roundsMap)
-        .map(Number)
-        .sort((a, b) => a - b);
-
+    // Vooru ja lõpetamise kontroll
     const currentRoundMatches = matches.filter((m) => m.round === tournament.currentRound);
     const roundDone =
         currentRoundMatches.length > 0 && currentRoundMatches.every((m) => m.status === 'Completed');
 
-    const playerCount = tournament.registeredPlayersCount ?? participants.length;
-    const totalRrRounds = (playerCount % 2 === 0 ? playerCount : playerCount + 1) - 1;
+    const totalRrRounds = (() => {
+        const n = displayCount;
+        const even = n % 2 === 0 ? n : n + 1;
+        return even - 1;
+    })();
 
     const isFinalReady =
         tournament.format === 'SingleElimination'
             ? currentRoundMatches.length === 1
             : tournament.format === 'RoundRobin' && tournament.currentRound >= totalRrRounds;
 
-    const canFinish = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && isFinalReady;
-    const canNextRound = isAdminOrOrganizer && tournament.status === 'InProgress' && roundDone && !isFinalReady;
+    const canFinish = isAdminOrOrganizer && isInProgress && roundDone && isFinalReady;
+    const canNextRound = isAdminOrOrganizer && isInProgress && roundDone && !isFinalReady;
+
+    // Arena puhul näitame tabelit koha ja punktide järgi
+    const sortedParticipants = isArena
+        ? [...participants].sort((a, b) => (a.finalRank ?? 9999) - (b.finalRank ?? 9999))
+        : participants;
 
     return (
         <div className="container">
-            <Link to="/tournaments" className="back-link">
-                ← Tagasi turniiride nimekirja
-            </Link>
+            <Link to="/tournaments" className="back-link">← Tagasi turniiride nimekirja</Link>
 
             <div className="panel">
                 <div className="page-header" style={{ marginBottom: 0 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                            <span className="badge badge-discipline">{formatDiscipline(rawGame)}</span>
+                            <span className="badge badge-discipline">{formatDiscipline(tournament.game)}</span>
                             <span className={getStatusBadgeClass(tournament.status)}>
-                {formatStatus(tournament.status)}
-              </span>
+                                {formatStatus(tournament.status)}
+                            </span>
                         </div>
                         <h1 className="page-title">{tournament.name}</h1>
                         {tournament.description && (
@@ -391,8 +335,8 @@ export function TournamentDetailPage() {
 
                         {isPlayer && alreadyRegistered && (
                             <span className="badge badge-open" style={{ padding: '8px 14px', fontSize: 13 }}>
-                ✓ Oled registreeritud
-              </span>
+                                ✓ Oled registreeritud
+                            </span>
                         )}
 
                         {canNextRound && (
@@ -400,12 +344,14 @@ export function TournamentDetailPage() {
                                 Genereeri järgmine voor
                             </button>
                         )}
+
                         {canFinish && (
                             <button onClick={handleFinishTournament} className="btn btn-primary">
                                 Lõpeta turniir
                             </button>
                         )}
-                        {isAdminOrOrganizer && isOpenForRegistration && matches.length === 0 && (
+
+                        {isAdminOrOrganizer && isOpenForRegistration && matches.length === 0 && !isArena && (
                             <button onClick={handleGenerateBracket} className="btn btn-success">
                                 Genereeri turniiritabel
                             </button>
@@ -431,21 +377,16 @@ export function TournamentDetailPage() {
                 <div className="info-grid">
                     <div className="info-box">
                         <div className="info-box-label">Mäng / Spordiala</div>
-                        <div className="info-box-value">{formatDiscipline(rawGame)}</div>
+                        <div className="info-box-value">{formatDiscipline(tournament.game)}</div>
                     </div>
-
                     <div className="info-box">
                         <div className="info-box-label">Turniiri formaat</div>
                         <div className="info-box-value">{formatTournamentFormat(tournament.format)}</div>
                     </div>
-
                     <div className="info-box">
                         <div className="info-box-label">Osalejate arv</div>
-                        <div className="info-box-value">
-                            {displayCount} / {maxP} mängijat
-                        </div>
+                        <div className="info-box-value">{displayCount} / {maxP} mängijat</div>
                     </div>
-
                     <div className="info-box">
                         <div className="info-box-label">Alguskuupäev</div>
                         <div className="info-box-value">
@@ -462,27 +403,29 @@ export function TournamentDetailPage() {
             {actionMsg && <div className="alert-success">{actionMsg}</div>}
             {error && <div className="alert-error">{error}</div>}
 
+            <WinnerBanner tournament={tournament} />
+
+            {isArena && <LiveDuels duels={tournament.liveDuels} />}
+
             <div className="panel">
-                <WinnerBanner tournament={tournament} />
-                <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>
-                    Registreerunud osalejad ({displayCount} / {maxP})
+                <h2 className="section-title">
+                    {isArena ? 'Tulemused' : 'Registreerunud osalejad'} ({displayCount} / {maxP})
                 </h2>
 
-                {participants.length === 0 ? (
-                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                        Osalejaid pole veel registreerunud.
-                    </p>
+                {sortedParticipants.length === 0 ? (
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>Osalejaid pole veel registreerunud.</p>
                 ) : (
                     <div className="participants-list">
-                        {participants.map((p) => {
-                            const playerId = p.playerId || p.userId || p.id;
-                            const playerName = p.displayName || p.username || p.playerName || `Mängija #${playerId}`;
-                            const elo = p.rating ?? p.eloRating;
-
+                        {sortedParticipants.map((p) => {
+                            const playerName = p.displayName || p.username || `Mängija #${p.playerId}`;
                             return (
-                                <Link key={playerId} to={`/players/${playerId}`} className="participant-chip">
+                                <Link key={p.playerId} to={`/players/${p.playerId}`} className="participant-chip">
+                                    {isArena && p.finalRank && <span className="elo-tag">#{p.finalRank}</span>}
                                     <span>{playerName}</span>
-                                    {elo !== undefined && <span className="elo-tag">Elo {elo}</span>}
+                                    {isArena && p.score !== null && p.score !== undefined && (
+                                        <span className="elo-tag">{p.score} p</span>
+                                    )}
+                                    {!isArena && <span className="elo-tag">Elo {p.rating}</span>}
                                 </Link>
                             );
                         })}
@@ -490,79 +433,74 @@ export function TournamentDetailPage() {
                 )}
             </div>
 
-            <div className="panel">
-                <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Turniiritabel</h2>
+            {!isArena && (
+                <div className="panel">
+                    <h2 className="section-title">Turniiritabel</h2>
 
-                {roundNumbers.length === 0 ? (
-                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                        Turniiritabel pole veel genereeritud.
-                    </p>
-                ) : (
-                    <div className="bracket-scroll">
-                        {roundNumbers.map((roundNum) => (
-                            <div key={roundNum} className="round-column">
-                                <h3 className="round-title">Voor {roundNum}</h3>
+                    {roundNumbers.length === 0 ? (
+                        <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                            Turniiritabel pole veel genereeritud.
+                        </p>
+                    ) : (
+                        <div className="bracket-scroll">
+                            {roundNumbers.map((roundNum) => (
+                                <div key={roundNum} className="round-column">
+                                    <h3 className="round-title">Voor {roundNum}</h3>
 
-                                {roundsMap[roundNum].map((m) => {
-                                    const p1Won = m.status === 'Completed' && m.player1Score > m.player2Score;
-                                    const p2Won = m.status === 'Completed' && m.player2Score > m.player1Score;
+                                    {roundsMap[roundNum].map((m) => {
+                                        const p1Won = m.status === 'Completed' && m.player1Score > m.player2Score;
+                                        const p2Won = m.status === 'Completed' && m.player2Score > m.player1Score;
 
-                                    return (
-                                        <div key={m.id} className="match-card">
-                                            <div className="match-row">
-                        <span>
-                          {m.player1Id ? (
-                              <Link to={`/players/${m.player1Id}`} style={{ fontWeight: p1Won ? 700 : 500 }}>
-                                  {m.player1Name || `Mängija #${m.player1Id}`}
-                              </Link>
-                          ) : (
-                              <span style={{ color: 'var(--text-muted)' }}>Selgumisel</span>
-                          )}
-                        </span>
-                                                <span className={`match-score ${p1Won ? 'winner' : ''}`}>
-                          {m.player1Score ?? '-'}
-                        </span>
+                                        return (
+                                            <div key={m.id} className="match-card">
+                                                <div className="match-row">
+                                                    {m.player1Id ? (
+                                                        <Link to={`/players/${m.player1Id}`} style={{ fontWeight: p1Won ? 700 : 500 }}>
+                                                            {m.player1Name || `Mängija #${m.player1Id}`}
+                                                        </Link>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--text-muted)' }}>Selgumisel</span>
+                                                    )}
+                                                    <span className={`match-score ${p1Won ? 'winner' : ''}`}>
+                                                        {m.player1Score ?? '-'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="match-row">
+                                                    {m.player2Id ? (
+                                                        <Link to={`/players/${m.player2Id}`} style={{ fontWeight: p2Won ? 700 : 500 }}>
+                                                            {m.player2Name || `Mängija #${m.player2Id}`}
+                                                        </Link>
+                                                    ) : (
+                                                        <em style={{ color: 'var(--text-muted)' }}>Vaba voor (Bye)</em>
+                                                    )}
+                                                    <span className={`match-score ${p2Won ? 'winner' : ''}`}>
+                                                        {m.player2Score ?? '-'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="match-footer">
+                                                    <span>Staatus: {formatMatchStatus(m.status)}</span>
+                                                    {isAdminOrOrganizer && m.status !== 'Completed' && m.player2Id && (
+                                                        <button onClick={() => openScoreModal(m)} className="btn btn-primary btn-sm">
+                                                            Sisesta tulemus
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-
-                                            <div className="match-row">
-                        <span>
-                          {m.player2Id ? (
-                              <Link to={`/players/${m.player2Id}`} style={{ fontWeight: p2Won ? 700 : 500 }}>
-                                  {m.player2Name || `Mängija #${m.player2Id}`}
-                              </Link>
-                          ) : (
-                              <em style={{ color: 'var(--text-muted)' }}>Vaba voor (Bye)</em>
-                          )}
-                        </span>
-                                                <span className={`match-score ${p2Won ? 'winner' : ''}`}>
-                          {m.player2Score ?? '-'}
-                        </span>
-                                            </div>
-
-                                            <div className="match-footer">
-                                                <span>Staatus: {formatMatchStatus(m.status)}</span>
-                                                {isAdminOrOrganizer && m.status !== 'Completed' && m.player2Id && (
-                                                    <button
-                                                        onClick={() => openScoreModal(m)}
-                                                        className="btn btn-primary btn-sm"
-                                                    >
-                                                        Sisesta tulemus
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                                        );
+                                    })}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {isEditOpen && (
                 <div className="modal-backdrop">
                     <div className="modal-box" style={{ maxWidth: 480 }}>
-                        <h3 style={{ margin: '0 0 16px', fontSize: 19 }}>Muuda turniiri</h3>
+                        <h3 style={{ margin: '0 0 16px' }}>Muuda turniiri</h3>
 
                         <form onSubmit={handleUpdateTournament}>
                             <div className="form-group">
@@ -650,7 +588,7 @@ export function TournamentDetailPage() {
             {selectedMatch && (
                 <div className="modal-backdrop">
                     <div className="modal-box">
-                        <h3 style={{ margin: '0 0 16px', fontSize: 19 }}>Sisesta mängu tulemus</h3>
+                        <h3 style={{ margin: '0 0 16px' }}>Sisesta mängu tulemus</h3>
 
                         <form onSubmit={handleSaveResult}>
                             <div className="form-group">
@@ -680,18 +618,10 @@ export function TournamentDetailPage() {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedMatch(null)}
-                                    className="btn btn-outline"
-                                >
+                                <button type="button" onClick={() => setSelectedMatch(null)} className="btn btn-outline">
                                     Tühista
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={submittingScore}
-                                    className="btn btn-primary"
-                                >
+                                <button type="submit" disabled={submittingScore} className="btn btn-primary">
                                     {submittingScore ? 'Salvestan...' : 'Salvesta tulemus'}
                                 </button>
                             </div>
