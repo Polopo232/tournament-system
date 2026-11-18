@@ -13,6 +13,19 @@ import { WinnerBanner } from '../components/WinnerBanner';
 import { LiveDuels } from '../components/LiveDuels';
 
 export function TournamentDetailPage() {
+
+    function describeError(err, fallback = 'Tulemuse salvestamine ebaõnnestus.') {
+        if (!err.response) {
+            return 'Serveriga ei saadud ühendust. Kontrolli, kas API töötab pordil 5000.';
+        }
+
+        const data = err.response.data;
+        const status = err.response.status;
+        const fieldErrors = data?.errors ? Object.values(data.errors).flat().join(' ') : '';
+
+        return [data?.detail, fieldErrors, `(HTTP ${status})`].filter(Boolean).join(' ') || fallback;
+    }
+
     const { id } = useParams();
     const navigate = useNavigate();
     const tournamentId = Number(id);
@@ -215,17 +228,28 @@ export function TournamentDetailPage() {
     const handleSaveResult = async (e) => {
         e.preventDefault();
         if (!selectedMatch) return;
+
+        const s1 = Number(score1);
+        const s2 = Number(score2);
+
+        // Ühe väljalangemisega turniiril viik ei ole lubatud. Vaikimisi on mõlemad skoorid 0,
+        // seega ilma muutmiseta salvestamine annab viigi.
+        if (tournament.format === 'SingleElimination' && s1 === s2) {
+            setError('Ühe väljalangemisega turniiril ei saa olla viiki. Sisesta erinev tulemus.');
+            return;
+        }
+
         try {
             setSubmittingScore(true);
             setError(null);
             await apiClient.put(`/api/matches/${selectedMatch.id}/result`, {
-                player1Score: Number(score1),
-                player2Score: Number(score2),
+                player1Score: s1,
+                player2Score: s2,
             });
             setSelectedMatch(null);
             await loadTournament();
         } catch (err) {
-            setError(err.response?.data?.detail || 'Tulemuse salvestamine ebaõnnestus.');
+            setError(describeError(err));
         } finally {
             setSubmittingScore(false);
         }
@@ -414,21 +438,41 @@ export function TournamentDetailPage() {
 
                 {sortedParticipants.length === 0 ? (
                     <p style={{ margin: 0, color: 'var(--text-muted)' }}>Osalejaid pole veel registreerunud.</p>
+                ) : isArena ? (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Koht</th>
+                                    <th>Mängija</th>
+                                    <th>Punktid</th>
+                                    <th>Elo (rapid)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedParticipants.map((p) => (
+                                    <tr key={p.playerId}>
+                                        <td>{p.finalRank ?? '—'}</td>
+                                        <td>
+                                            <Link to={`/players/${p.playerId}`}>
+                                                {p.displayName || p.username}
+                                            </Link>
+                                        </td>
+                                        <td><strong>{p.score ?? '—'}</strong></td>
+                                        <td>{p.rating}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 ) : (
                     <div className="participants-list">
-                        {sortedParticipants.map((p) => {
-                            const playerName = p.displayName || p.username || `Mängija #${p.playerId}`;
-                            return (
-                                <Link key={p.playerId} to={`/players/${p.playerId}`} className="participant-chip">
-                                    {isArena && p.finalRank && <span className="elo-tag">#{p.finalRank}</span>}
-                                    <span>{playerName}</span>
-                                    {isArena && p.score !== null && p.score !== undefined && (
-                                        <span className="elo-tag">{p.score} p</span>
-                                    )}
-                                    {!isArena && <span className="elo-tag">Elo {p.rating}</span>}
-                                </Link>
-                            );
-                        })}
+                        {sortedParticipants.map((p) => (
+                            <Link key={p.playerId} to={`/players/${p.playerId}`} className="participant-chip">
+                                <span>{p.displayName || p.username || `Mängija #${p.playerId}`}</span>
+                                <span className="elo-tag">Elo {p.rating}</span>
+                            </Link>
+                        ))}
                     </div>
                 )}
             </div>
