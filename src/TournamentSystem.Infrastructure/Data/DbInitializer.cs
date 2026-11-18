@@ -19,7 +19,7 @@ public static class DbInitializer
         var service = CreateUser("service", "Teenus", "Service123!", UserRole.Service);
 
         string[] nicks = ["Mari", "Jaan", "Kadri", "Rasmus", "Liis", "Oskar", "Anna", "Tiit"];
-        int[] ratings = [1000, 1080, 1000, 1000, 1000, 1000, 1000, 1000];
+        int[] ratings = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
 
         var players = new List<User>();
         for (int i = 0; i < ratings.Length; i++)

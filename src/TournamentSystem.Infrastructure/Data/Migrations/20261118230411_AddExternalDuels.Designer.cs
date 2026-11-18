@@ -12,7 +12,7 @@ using TournamentSystem.Infrastructure.Data;
 namespace TournamentSystem.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261118224613_AddExternalDuels")]
+    [Migration("20261118230411_AddExternalDuels")]
     partial class AddExternalDuels
     {
         /// <inheritdoc />
