@@ -175,7 +175,7 @@ export function PlayerProfilePage() {
                                         <Line
                                             type="monotone"
                                             dataKey="rating"
-                                            stroke="var(--primary)"
+                                            stroke="#c6ff34"
                                             strokeWidth={2}
                                             dot={{ r: 3 }}
                                             activeDot={{ r: 6 }}
