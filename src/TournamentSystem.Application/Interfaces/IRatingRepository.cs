@@ -9,4 +9,5 @@ public interface IRatingRepository
     Task<Dictionary<int, PlayerRating>> GetOrCreateForPlayersAsync(IEnumerable<int> playerIds, string game);
     void Add(RatingHistory entry);
     Task SaveChangesAsync();
+    Task<(List<PlayerRating> Items, int Total)> GetLeaderboardAsync(string game, string? search, int page, int pageSize);
 }

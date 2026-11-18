@@ -56,4 +56,29 @@ public class RatingRepository(AppDbContext db) : IRatingRepository
     {
         return db.SaveChangesAsync();
     }
+
+    public async Task<(List<PlayerRating> Items, int Total)> GetLeaderboardAsync(
+    string game, string? search, int page, int pageSize)
+    {
+        var query = db.PlayerRatings
+            .Include(r => r.User)
+            .Where(r => r.Game == game);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(r => r.User.DisplayName.Contains(term));
+        }
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(r => r.Rating)
+            .ThenBy(r => r.User.DisplayName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, total);
+    }
 }
