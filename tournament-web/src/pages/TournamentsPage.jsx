@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient, getStoredUser } from '../api/client';
 import {
     formatDiscipline,
@@ -8,22 +8,134 @@ import {
     getStatusBadgeClass,
 } from '../utils/formatters';
 
+const PAGE_SIZE = 9;
+
+const GAME_TABS = [
+    { key: 'all', label: 'Kõik', discipline: null, format: null, color: '#c6ff34' },
+    { key: 'Chess', label: 'Male', discipline: 'Chess', format: null, color: '#e5e7eb' },
+    { key: 'CS2', label: 'Counter-Strike 2', discipline: 'CS2', format: null, color: '#ff7a1a' },
+    { key: 'Dota2', label: 'Dota 2', discipline: 'Dota2', format: null, color: '#ff3b5c' },
+    { key: 'TableTennis', label: 'Lauatennis', discipline: 'TableTennis', format: null, color: '#2dd4bf' },
+    { key: 'Lichess', label: 'Lichess-arenad', discipline: null, format: 'Arena', color: '#38bdf8' },
+];
+
+const STATUS_CHIPS = [
+    { value: '', label: 'Kõik' },
+    { value: 'Registration', label: 'Registreerimine' },
+    { value: 'InProgress', label: 'Käimas' },
+    { value: 'Finished', label: 'Lõppenud' },
+];
+
+const SORT_OPTIONS = [
+    { value: '', label: 'Uuemad enne' },
+    { value: 'startdate', label: 'Alguskuupäev' },
+    { value: 'participants', label: 'Osalejate arv' },
+    { value: 'name', label: 'Nimi (A–Z)' },
+];
+
+const GAME_COLORS = {
+    CS2: '#ff7a1a',
+    Dota2: '#ff3b5c',
+    Chess: '#e5e7eb',
+    TableTennis: '#2dd4bf',
+    Arena: '#38bdf8',
+};
+
+function themeColor(t) {
+    if (t.format === 'Arena') return GAME_COLORS.Arena;
+    const base = (t.game || '').split(' (')[0];
+    return GAME_COLORS[base] || '#a78bfa';
+}
+
+function gameLabel(t) {
+    const game = t.game || t.discipline || '';
+    const [base, detail] = game.split(' (');
+    const label = formatDiscipline(base);
+    return detail ? `${label} · ${detail.replace(')', '')}` : label;
+}
+
+function buildPages(current, total) {
+    const wanted = [1, total, current - 1, current, current + 1].filter((p) => p >= 1 && p <= total);
+    const sorted = [...new Set(wanted)].sort((a, b) => a - b);
+    const out = [];
+    sorted.forEach((p, i) => {
+        if (i > 0 && p - sorted[i - 1] > 1) out.push('…');
+        out.push(p);
+    });
+    return out;
+}
+
+function TournamentCard({ tournament: t }) {
+    const max = t.maxPlayers ?? t.maxParticipants ?? 0;
+    const count = t.registeredPlayersCount ?? t.registrations?.length ?? 0;
+    const percent = max > 0 ? Math.min(100, Math.round((count / max) * 100)) : 0;
+
+    return (
+        <article className="t-card" style={{ '--game': themeColor(t) }}>
+            <div className="t-card-top">
+                <span className="chip-game">{gameLabel(t)}</span>
+                <span className={getStatusBadgeClass(t.status)}>{formatStatus(t.status)}</span>
+            </div>
+
+            <Link to={`/tournaments/${t.id}`} className="t-card-title">
+                {t.name}
+            </Link>
+
+            {t.description && <p className="t-card-desc">{t.description}</p>}
+
+            <div className="progress">
+                <div className="progress-bar" style={{ width: `${percent}%` }} />
+            </div>
+
+            <div className="t-card-meta">
+                <span>{count} / {max} mängijat</span>
+                <span>{formatTournamentFormat(t.format)}</span>
+            </div>
+
+            <div className="t-card-date">
+                {new Date(t.startDate).toLocaleDateString('et-EE', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                })}
+            </div>
+        </article>
+    );
+}
+
+function TournamentCardSkeleton() {
+    return (
+        <div className="t-card t-card-skeleton" aria-hidden="true">
+            <div className="skeleton" style={{ height: 22, width: '40%' }} />
+            <div className="skeleton" style={{ height: 26, width: '85%', marginTop: 14 }} />
+            <div className="skeleton" style={{ height: 14, width: '70%' }} />
+            <div className="skeleton" style={{ height: 8, width: '100%', marginTop: 'auto' }} />
+        </div>
+    );
+}
+
 export function TournamentsPage() {
     const user = getStoredUser();
     const role = (user?.role || '').toLowerCase();
     const canCreate = role === 'admin' || role === 'organizer';
 
-    const [tournaments, setTournaments] = useState([]);
-    const [search, setSearch] = useState('');
-    const [status, setStatus] = useState('');
-    const [game, setGame] = useState('');
-    const [sortBy, setSortBy] = useState('startDate');
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const gameKey = searchParams.get('game') || 'all';
+    const status = searchParams.get('status') || '';
+    const sort = searchParams.get('sort') || '';
+    const q = searchParams.get('q') || '';
+    const page = Math.max(1, Number(searchParams.get('page')) || 1);
 
-    // Модальное окно создания турнира
+    const activeTab = GAME_TABS.find((t) => t.key === gameKey) ?? GAME_TABS[0];
+
+    const [qInput, setQInput] = useState(q);
+    const [items, setItems] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [reloadKey, setReloadKey] = useState(0);
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [creating, setCreating] = useState(false);
     const [createForm, setCreateForm] = useState({
@@ -35,51 +147,62 @@ export function TournamentsPage() {
         startDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
     });
 
-    const pageSize = 6;
+    const updateParams = (changes) => {
+        const next = new URLSearchParams(searchParams);
+        Object.entries(changes).forEach(([key, value]) => {
+            if (value === '' || value === null || value === undefined) next.delete(key);
+            else next.set(key, String(value));
+        });
+        if (!('page' in changes)) next.delete('page');
+        setSearchParams(next);
+    };
 
-    const fetchTournaments = useCallback(async () => {
-        try {
+    useEffect(() => {
+        setQInput(q);
+    }, [q]);
+
+    useEffect(() => {
+        if (qInput.trim() === q) return undefined;
+        const timer = setTimeout(() => updateParams({ q: qInput.trim() }), 300);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [qInput]);
+
+    const queryString = searchParams.toString();
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
             setLoading(true);
             setError(null);
 
-            const params = {
-                page,
-                pageSize,
-                sortBy,
-            };
-
-            if (search.trim()) params.search = search.trim();
+            const params = { page, pageSize: PAGE_SIZE };
+            if (q) params.search = q;
             if (status) params.status = status;
-            if (game) {
-                params.game = game;
-                params.discipline = game;
+            if (sort) params.sortBy = sort;
+            if (activeTab.discipline) params.discipline = activeTab.discipline;
+            if (activeTab.format) params.format = activeTab.format;
+
+            try {
+                const res = await apiClient.get('/api/tournaments', { params });
+                if (cancelled) return;
+                setItems(res.data.items ?? []);
+                setTotalCount(res.data.totalCount ?? 0);
+                setTotalPages(Math.max(1, res.data.totalPages ?? 1));
+            } catch {
+                if (!cancelled) setError('Turniiride laadimine ebaõnnestus. Kontrolli, kas API töötab.');
+            } finally {
+                if (!cancelled) setLoading(false);
             }
+        };
 
-            const response = await apiClient.get('/api/tournaments', { params });
-            const data = response.data;
-
-            if (Array.isArray(data)) {
-                setTournaments(data);
-                setTotalPages(1);
-            } else {
-                setTournaments(data.items ?? []);
-                setTotalPages(Math.max(1, data.totalPages || Math.ceil((data.totalCount || 0) / pageSize)));
-            }
-        } catch {
-            setError('Turniiride laadimine ebaõnnestus. Kontrolli, kas API töötab.');
-        } finally {
-            setLoading(false);
-        }
-    }, [search, status, game, sortBy, page]);
-
-    useEffect(() => {
-        fetchTournaments();
-    }, [fetchTournaments]);
-
-    const handleFilterChange = (setter, value) => {
-        setter(value);
-        setPage(1);
-    };
+        load();
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queryString, reloadKey]);
 
     const handleCreateTournament = async (e) => {
         e.preventDefault();
@@ -99,12 +222,8 @@ export function TournamentsPage() {
                 startDate: new Date(createForm.startDate).toISOString(),
             });
             setIsCreateOpen(false);
-            setCreateForm({
-                ...createForm,
-                name: '',
-                description: '',
-            });
-            await fetchTournaments();
+            setCreateForm({ ...createForm, name: '', description: '' });
+            setReloadKey((k) => k + 1);
         } catch (err) {
             setError(err.response?.data?.detail || 'Turniiri loomine ebaõnnestus.');
         } finally {
@@ -112,172 +231,149 @@ export function TournamentsPage() {
         }
     };
 
+    const hasFilters = Boolean(q || status || sort || gameKey !== 'all');
+
     return (
         <div className="container">
-            <div className="page-header">
+            <section className="hero">
                 <div>
-                    <h1 className="page-title">Turniiride kataloog</h1>
-                    <p className="page-subtitle">
-                        Sirvi aktiivseid ja tulevasi turniire, jälgi tulemusi ning liitu võistlusega
+                    <span className="hero-kicker">ArenaHub</span>
+                    <h1 className="hero-title">Turniirid</h1>
+                    <p className="hero-sub">
+                        Otsi turniire, jälgi käimasolevaid mänge ja vaata tulemusi ühest kohast.
                     </p>
                 </div>
 
-                {canCreate && (
-                    <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
-                        + Loo uus turniir
+                <div className="hero-side">
+                    <div className="hero-stat">
+                        <strong>{totalCount}</strong>
+                        <span>turniiri</span>
+                    </div>
+                    {canCreate && (
+                        <button onClick={() => setIsCreateOpen(true)} className="btn btn-success">
+                            + Loo uus turniir
+                        </button>
+                    )}
+                </div>
+            </section>
+
+            <div className="tabs" role="tablist">
+                {GAME_TABS.map((tab) => (
+                    <button
+                        key={tab.key}
+                        role="tab"
+                        aria-selected={tab.key === activeTab.key}
+                        className={`tab ${tab.key === activeTab.key ? 'active' : ''}`}
+                        style={{ '--game': tab.color }}
+                        onClick={() => updateParams({ game: tab.key === 'all' ? '' : tab.key })}
+                    >
+                        {tab.label}
                     </button>
-                )}
+                ))}
             </div>
 
-            <div className="filter-bar">
-                <input
-                    type="text"
-                    className="input"
-                    value={search}
-                    onChange={(e) => handleFilterChange(setSearch, e.target.value)}
-                    placeholder="Otsi turniiri nime järgi..."
-                />
+            <div className="toolbar">
+                <div className="search-box">
+                    <span className="search-icon">⌕</span>
+                    <input
+                        type="text"
+                        className="input search-input"
+                        value={qInput}
+                        onChange={(e) => setQInput(e.target.value)}
+                        placeholder="Otsi turniiri nime järgi..."
+                    />
+                </div>
+
+                <div className="seg" role="group" aria-label="Staatus">
+                    {STATUS_CHIPS.map((s) => (
+                        <button
+                            key={s.value || 'all'}
+                            className={`seg-btn ${status === s.value ? 'active' : ''}`}
+                            onClick={() => updateParams({ status: s.value })}
+                        >
+                            {s.label}
+                        </button>
+                    ))}
+                </div>
 
                 <select
-                    className="select"
-                    value={status}
-                    onChange={(e) => handleFilterChange(setStatus, e.target.value)}
+                    className="select toolbar-select"
+                    value={sort}
+                    onChange={(e) => updateParams({ sort: e.target.value })}
                 >
-                    <option value="">Kõik staatused</option>
-                    <option value="Registration">Avatud registreerimiseks</option>
-                    <option value="InProgress">Käimasolev</option>
-                    <option value="Finished">Lõppenud</option>
-                </select>
-
-                <select
-                    className="select"
-                    value={game}
-                    onChange={(e) => handleFilterChange(setGame, e.target.value)}
-                >
-                    <option value="">Kõik alad ja mängud</option>
-                    <option value="CS2">Counter-Strike 2</option>
-                    <option value="Dota2">Dota 2</option>
-                    <option value="Chess">Male</option>
-                    <option value="TableTennis">Lauatennis</option>
-                </select>
-
-                <select
-                    className="select"
-                    value={sortBy}
-                    onChange={(e) => handleFilterChange(setSortBy, e.target.value)}
-                >
-                    <option value="startDate">Sorteeri: Alguskuupäev</option>
-                    <option value="participants">Sorteeri: Osalejate arv</option>
-                    <option value="name">Sorteeri: Nimi (A–Z)</option>
+                    {SORT_OPTIONS.map((o) => (
+                        <option key={o.value || 'default'} value={o.value}>
+                            {o.label}
+                        </option>
+                    ))}
                 </select>
             </div>
 
             {error && <div className="alert-error">{error}</div>}
 
             {loading ? (
-                <p style={{ color: 'var(--text-muted)' }}>Laadin turniire...</p>
-            ) : tournaments.length === 0 ? (
-                <div className="panel" style={{ textAlign: 'center', padding: 48 }}>
-                    <h3 style={{ margin: '0 0 8px' }}>Turniire ei leitud</h3>
-                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                        Proovi muuta otsingusõna või vali teine filter.
-                    </p>
+                <div className="t-grid">
+                    {Array.from({ length: 6 }, (_, i) => (
+                        <TournamentCardSkeleton key={i} />
+                    ))}
+                </div>
+            ) : items.length === 0 ? (
+                <div className="empty-state">
+                    <div className="empty-icon">◎</div>
+                    <h3>Turniire ei leitud</h3>
+                    <p>Proovi teist filtrit või otsingusõna.</p>
+                    {hasFilters && (
+                        <button className="btn btn-outline" onClick={() => setSearchParams({})}>
+                            Lähtesta filtrid
+                        </button>
+                    )}
                 </div>
             ) : (
-                <div className="cards-grid">
-                    {tournaments.map((t) => {
-                        const rawGame = t.game || t.discipline;
-                        const maxP = t.maxPlayers ?? t.maxParticipants ?? 0;
-                        const count =
-                            t.currentParticipantsCount ??
-                            t.participantsCount ??
-                            t.registeredCount ??
-                            (Array.isArray(t.registrations) ? t.registrations.length : 0);
-
-                        return (
-                            <article key={t.id} className="card">
-                                <div>
-                                    <div className="card-badges">
-                                        <span className="badge badge-discipline">{formatDiscipline(rawGame)}</span>
-                                        <span className={getStatusBadgeClass(t.status)}>{formatStatus(t.status)}</span>
-                                    </div>
-
-                                    <h3 className="card-title">
-                                        <Link to={`/tournaments/${t.id}`}>{t.name}</Link>
-                                    </h3>
-
-                                    {t.description && <p className="card-desc">{t.description}</p>}
-                                </div>
-
-                                <div className="card-meta">
-                                    <div className="meta-row">
-                                        <span className="meta-label">Formaat</span>
-                                        <span className="meta-value">{formatTournamentFormat(t.format)}</span>
-                                    </div>
-
-                                    <div className="meta-row">
-                                        <span className="meta-label">Osalejad</span>
-                                        <span className="meta-value">
-                      {count} / {maxP} mängijat
-                    </span>
-                                    </div>
-
-                                    <div className="meta-row">
-                                        <span className="meta-label">Alguskuupäev</span>
-                                        <span className="meta-value">
-                      {new Date(t.startDate).toLocaleDateString('et-EE', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                      })}
-                    </span>
-                                    </div>
-
-                                    <div style={{ marginTop: 10 }}>
-                                        <Link to={`/tournaments/${t.id}`} className="btn btn-outline" style={{ width: '100%' }}>
-                                            Ava turniiritabel
-                                        </Link>
-                                    </div>
-                                </div>
-                            </article>
-                        );
-                    })}
+                <div className="t-grid">
+                    {items.map((t) => (
+                        <TournamentCard key={t.id} tournament={t} />
+                    ))}
                 </div>
             )}
 
-            <div className="pagination">
-                <button
-                    className="page-btn"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                    Eelmine
-                </button>
-
-                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
+            {totalPages > 1 && (
+                <div className="pager">
                     <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`page-btn ${pageNum === page ? 'active' : ''}`}
+                        className="page-btn"
+                        disabled={page <= 1}
+                        onClick={() => updateParams({ page: page - 1 })}
                     >
-                        {pageNum}
+                        ←
                     </button>
-                ))}
 
-                <button
-                    className="page-btn"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                    Järgmine
-                </button>
-            </div>
+                    {buildPages(page, totalPages).map((p, i) =>
+                        p === '…' ? (
+                            <span key={`dots-${i}`} className="pager-dots">…</span>
+                        ) : (
+                            <button
+                                key={p}
+                                className={`page-btn ${p === page ? 'active' : ''}`}
+                                onClick={() => updateParams({ page: p })}
+                            >
+                                {p}
+                            </button>
+                        )
+                    )}
 
-            {/* Модальное окно создания турнира */}
+                    <button
+                        className="page-btn"
+                        disabled={page >= totalPages}
+                        onClick={() => updateParams({ page: page + 1 })}
+                    >
+                        →
+                    </button>
+                </div>
+            )}
+
             {isCreateOpen && (
                 <div className="modal-backdrop">
                     <div className="modal-box" style={{ maxWidth: 480 }}>
-                        <h3 style={{ margin: '0 0 16px', fontSize: 19 }}>Loo uus turniir</h3>
+                        <h3 style={{ margin: '0 0 16px' }}>Loo uus turniir</h3>
 
                         <form onSubmit={handleCreateTournament}>
                             <div className="form-group">
