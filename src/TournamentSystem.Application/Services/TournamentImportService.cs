@@ -176,12 +176,11 @@ public class TournamentImportService(
         var externalId = $"lichess:{arena.Id}";
         var tournament = await tournaments.GetByExternalIdAsync(externalId);
 
-        // Lõppenud arenat jätame vahele, kui sellel on juba võitja.
-        // Kui võitja puudub, uuendame turniiri ja määrame võitja.
         if (tournament?.Status == TournamentStatus.Finished && tournament.WinnerId != null)
         {
             return SyncOutcome.Skipped;
         }
+
         var isFinished = arena.Status == FinishedStatus;
         var results = await arenaSource.GetResultsAsync(arena.Id);
         var isNew = tournament == null;
@@ -210,6 +209,8 @@ public class TournamentImportService(
             tournament.Game = gameKey;
         }
 
+        var ratingChanges = new List<(User Player, int OldRating, int NewRating)>();
+
         foreach (var r in results.OrderBy(x => x.Rank))
         {
             var player = await GetOrCreateLichessPlayerAsync(r.Username);
@@ -232,7 +233,11 @@ public class TournamentImportService(
 
             if (r.Rating > 0)
             {
-                SetCategoryRating(player, gameKey, r.Rating);
+                var change = SetCategoryRating(player, gameKey, r.Rating);
+                if (change != null)
+                {
+                    ratingChanges.Add((player, change.Value.Old, change.Value.New));
+                }
             }
         }
 
@@ -243,19 +248,42 @@ public class TournamentImportService(
         {
             tournament.Status = TournamentStatus.Finished;
             tournament.Winner = tournament.Registrations.FirstOrDefault(x => x.FinalRank == 1)?.Player;
+        }
+
+        // Esimene salvestus annab turniirile ja mängijatele ID-d
+        await tournaments.SaveChangesAsync();
+
+        // Teine salvestus kirjutab ajaloo, nüüd on turniiri ID teada
+        foreach (var change in ratingChanges)
+        {
+            change.Player.RatingHistory.Add(new RatingHistory
+            {
+                Game = gameKey,
+                OldRating = change.OldRating,
+                NewRating = change.NewRating,
+                TournamentId = tournament.Id,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (ratingChanges.Count > 0)
+        {
             await tournaments.SaveChangesAsync();
+        }
+
+        if (isFinished)
+        {
             return SyncOutcome.Finished;
         }
 
-        await tournaments.SaveChangesAsync();
         return isNew ? SyncOutcome.Created : SyncOutcome.Updated;
     }
 
     /// <summary>
-    /// Salvestab Lichessi reitingu kategooria järgi. Olemasoleva kirje uuendab, uut loob.
+    /// Salvestab Lichessi reitingu kategooria järgi. Tagastab muudatuse, kui reiting muutus.
     /// Elo-d see ei muuda.
     /// </summary>
-    private static void SetCategoryRating(User player, string game, int rating)
+    private static (int Old, int New)? SetCategoryRating(User player, string game, int rating)
     {
         var entry = player.Ratings.FirstOrDefault(x => x.Game == game);
 
@@ -267,10 +295,17 @@ public class TournamentImportService(
                 Game = game,
                 Rating = rating
             });
+
+            return rating == 1200 ? null : (1200, rating);
         }
-        else
+
+        if (entry.Rating == rating)
         {
-            entry.Rating = rating;
+            return null;
         }
+
+        var old = entry.Rating;
+        entry.Rating = rating;
+        return (old, rating);
     }
 }

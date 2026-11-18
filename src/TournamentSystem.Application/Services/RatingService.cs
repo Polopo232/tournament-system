@@ -106,6 +106,7 @@ public class RatingService(
                 PlayerId = p1Id,
                 MatchId = match.Id,
                 Game = tournament.Game,
+                TournamentId = tournament.Id,
                 OldRating = old1,
                 NewRating = new1,
                 CreatedAt = DateTime.UtcNow
@@ -116,6 +117,7 @@ public class RatingService(
                 PlayerId = p2Id,
                 MatchId = match.Id,
                 Game = tournament.Game,
+                TournamentId = tournament.Id,
                 OldRating = old2,
                 NewRating = new2,
                 CreatedAt = DateTime.UtcNow
@@ -140,10 +142,10 @@ public class RatingService(
             throw new NotFoundException($"Player with ID {playerId} was not found.");
         }
 
-        var history = await ratings.GetByPlayerIdAsync(playerId);
+        var history = await ratings.GetHistoryWithTournamentAsync(playerId);
+
         return history
-            .OrderBy(h => h.CreatedAt)
-            .Select(RatingHistoryDto.FromEntity)
+            .Select(x => RatingHistoryDto.FromEntity(x.History, x.TournamentName))
             .ToList();
     }
 
@@ -157,5 +159,45 @@ public class RatingService(
 
         var list = await ratings.GetPlayerRatingsAsync(playerId);
         return list.Select(PlayerRatingDto.FromEntity).ToList();
+    }
+
+    public async Task<PlayerProfileDto> GetPlayerProfileAsync(int playerId)
+    {
+        var player = await users.GetByIdAsync(playerId)
+            ?? throw new NotFoundException($"Player with ID {playerId} was not found.");
+
+        var playerRatings = await ratings.GetPlayerRatingsAsync(playerId);
+
+        return new PlayerProfileDto
+        {
+            Id = player.Id,
+            DisplayName = player.DisplayName,
+            Ratings = playerRatings.Select(PlayerRatingDto.FromEntity).ToList()
+        };
+    }
+
+    public async Task<LeaderboardPageDto> GetLeaderboardAsync(string game, string? search, int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var (items, total) = await ratings.GetLeaderboardAsync(game, search, page, pageSize);
+        int offset = (page - 1) * pageSize;
+
+        return new LeaderboardPageDto
+        {
+            Items = items.Select((r, index) => new LeaderboardEntryDto
+            {
+                Rank = offset + index + 1,
+                PlayerId = r.UserId,
+                DisplayName = r.User.DisplayName,
+                Game = r.Game,
+                Rating = r.Rating
+            }).ToList(),
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize))
+        };
     }
 }

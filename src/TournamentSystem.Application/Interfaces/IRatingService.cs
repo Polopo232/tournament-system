@@ -9,4 +9,6 @@ public interface IRatingService
     Task RecalculateTournamentRatingsAsync(int tournamentId, CurrentUser? actor = null);
     Task<List<RatingHistoryDto>> GetPlayerRatingHistoryAsync(int playerId);
     Task<List<PlayerRatingDto>> GetPlayerRatingsAsync(int playerId);
+    Task<PlayerProfileDto> GetPlayerProfileAsync(int playerId);
+    Task<LeaderboardPageDto> GetLeaderboardAsync(string game, string? search, int page, int pageSize);
 }

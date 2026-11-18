@@ -6,6 +6,7 @@ import { TournamentsPage } from './pages/TournamentsPage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { LeaderboardPage } from './pages/LeaderboardPage';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -28,6 +29,9 @@ function Navbar() {
                     </Link>
                     <Link to="/tournaments" className="nav-item">
                         Turniirid
+                    </Link>
+                    <Link to="/leaderboard" className="nav-item">
+                        Edetabel
                     </Link>
                     {isAdmin && (
                         <Link to="/admin/users" className="nav-item">
@@ -83,6 +87,7 @@ export function App() {
                 <Route path="/" element={<Navigate to="/tournaments" replace />} />
                 <Route path="/tournaments" element={<TournamentsPage />} />
                 <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/players/:id" element={<PlayerProfilePage />} />
                 <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/login" element={<LoginPage />} />

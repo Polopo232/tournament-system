@@ -72,36 +72,30 @@ public class CompletedRoundTournamentDto
 /// <summary>
 /// Mängija Elo-reitingu muudatuse kirje ajaloo jaoks.
 /// </summary>
+/// <summary>
+/// Mängija Elo-reitingu muudatuse kirje ajaloo jaoks.
+/// </summary>
 public class RatingHistoryDto
 {
-    /// <example>1</example>
     public int Id { get; set; }
-
-    /// <example>Chess</example>
     public string Game { get; set; } = string.Empty;
-
-    /// <example>5</example>
     public int? MatchId { get; set; }
-
-    /// <example>1200</example>
+    public int? TournamentId { get; set; }
+    public string? TournamentName { get; set; }
     public int OldRating { get; set; }
-
-    /// <example>1216</example>
     public int NewRating { get; set; }
-
-    /// <example>16</example>
     public int RatingChange => NewRating - OldRating;
-
-    /// <example>2026-11-13T12:00:00Z</example>
     public DateTime CreatedAt { get; set; }
 
-    public static RatingHistoryDto FromEntity(RatingHistory r)
+    public static RatingHistoryDto FromEntity(RatingHistory r, string? tournamentName)
     {
         return new RatingHistoryDto
         {
             Id = r.Id,
             Game = r.Game,
             MatchId = r.MatchId,
+            TournamentId = r.TournamentId,
+            TournamentName = tournamentName,
             OldRating = r.OldRating,
             NewRating = r.NewRating,
             CreatedAt = r.CreatedAt
