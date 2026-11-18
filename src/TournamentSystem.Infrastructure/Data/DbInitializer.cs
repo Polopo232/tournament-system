@@ -19,7 +19,7 @@ public static class DbInitializer
         var service = CreateUser("service", "Teenus", "Service123!", UserRole.Service);
 
         string[] nicks = ["Mari", "Jaan", "Kadri", "Rasmus", "Liis", "Oskar", "Anna", "Tiit"];
-        int[] ratings = [1000, 1080, 1150, 1210, 1270, 1340, 1420, 1500];
+        int[] ratings = [1000, 1080, 1000, 1000, 1000, 1000, 1000, 1000];
 
         var players = new List<User>();
         for (int i = 0; i < ratings.Length; i++)
@@ -96,7 +96,7 @@ public static class DbInitializer
         // 4. Käimasolev lauatennise turniir ootel matšidega skoori sisestamiseks
         var t4 = new Tournament
         {
-            Name = "TTHK Table Tennis Masters",
+            Name = "TECHNO Table Tennis Masters",
             Game = "TableTennis",
             Description = "Koolisisene lauatennise karikas. Korraldaja saab sisestada jooksvate mängude tulemusi.",
             Format = TournamentFormat.SingleElimination,
