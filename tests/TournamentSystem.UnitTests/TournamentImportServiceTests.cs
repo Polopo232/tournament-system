@@ -123,7 +123,9 @@ public class TournamentImportServiceTests
 
         var result = await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
 
+        Assert.Empty(result.Errors); // если тут падает, в сообщении будет текст ошибки
         Assert.Equal(1, result.Created);
+
         _tournaments.Verify(t => t.Add(It.Is<Tournament>(x => x.Format == TournamentFormat.Arena
             && x.Status == TournamentStatus.InProgress)), Times.Once);
     }

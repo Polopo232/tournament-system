@@ -158,8 +158,8 @@ public class TournamentImportService(
             }
             catch (Exception ex)
             {
-                // Viga ühes areenas ei peata teisi. Muudatused, mis jäid salvestamata, lähevad järgmise salvestusega kaasa.
                 result.Failed++;
+                result.Errors.Add($"{arena.Id}: {ex.GetType().Name}: {ex.Message}");
                 logger.LogError(ex, "Lichessi arena {ArenaId} sünkroonimine ebaõnnestus.", arena.Id);
             }
         }
