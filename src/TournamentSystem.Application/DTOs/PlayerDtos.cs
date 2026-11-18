@@ -6,6 +6,7 @@ public class PlayerProfileDto
     public int Id { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public List<PlayerRatingDto> Ratings { get; set; } = new();
+    public List<PlayerWinDto> Wins { get; set; } = new();
 }
 
 /// <summary>Edetabeli rida.</summary>
@@ -26,4 +27,14 @@ public class LeaderboardPageDto
     public int Page { get; set; }
     public int PageSize { get; set; }
     public int TotalPages { get; set; }
+}
+
+/// <summary>Mängija võit turniiril.</summary>
+public class PlayerWinDto
+{
+    public int TournamentId { get; set; }
+    public string TournamentName { get; set; } = string.Empty;
+    public string Game { get; set; } = string.Empty;
+    public string Format { get; set; } = string.Empty;
+    public DateTime Date { get; set; }
 }

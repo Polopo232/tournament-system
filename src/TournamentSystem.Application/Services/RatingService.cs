@@ -168,11 +168,26 @@ public class RatingService(
 
         var playerRatings = await ratings.GetPlayerRatingsAsync(playerId);
 
+        // Võidud: turniirid, kus võitjaks on see mängija
+        var wins = (await tournaments.GetAllAsync())
+            .Where(t => t.WinnerId == playerId)
+            .OrderByDescending(t => t.StartDate)
+            .Select(t => new PlayerWinDto
+            {
+                TournamentId = t.Id,
+                TournamentName = t.Name,
+                Game = t.Game,
+                Format = t.Format.ToString(),
+                Date = t.StartDate
+            })
+            .ToList();
+
         return new PlayerProfileDto
         {
             Id = player.Id,
             DisplayName = player.DisplayName,
-            Ratings = playerRatings.Select(PlayerRatingDto.FromEntity).ToList()
+            Ratings = playerRatings.Select(PlayerRatingDto.FromEntity).ToList(),
+            Wins = wins
         };
     }
 
