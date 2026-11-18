@@ -32,6 +32,7 @@ export function formatDiscipline(discipline) {
         Dota2: 'Dota 2',
         Chess: 'Male',
         TableTennis: 'Lauatennis',
+        'Chess (rapid)': 'Male (rapid)',
     };
     return map[discipline] || discipline;
 }
