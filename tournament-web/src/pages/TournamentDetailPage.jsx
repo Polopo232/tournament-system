@@ -15,6 +15,14 @@ import { LiveDuels } from '../components/LiveDuels';
 export function TournamentDetailPage() {
 
     function describeError(err, fallback = 'Tulemuse salvestamine ebaõnnestus.') {
+
+        if (err.response?.status === 401) {
+            return 'Sessioon on aegunud. Logi uuesti sisse.';
+        }
+        if (err.response?.status === 403) {
+            return 'Sul ei ole õigust seda tulemust muuta. Turniiri saab muuta ainult selle korraldaja.';
+        }
+
         if (!err.response) {
             return 'Serveriga ei saadud ühendust. Kontrolli, kas API töötab pordil 5000.';
         }

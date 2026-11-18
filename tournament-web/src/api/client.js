@@ -10,14 +10,18 @@ export const apiClient = axios.create({
     },
 });
 
-apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            clearAuthSession();
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
     }
-    return config;
-});
-
+);
 function parseJwtUser(token) {
     try {
         const payloadBase64 = token.split('.')[1];
