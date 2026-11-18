@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 function DuelModal({ duel, onClose }) {
     useEffect(() => {
         const onKey = (e) => {
             if (e.key === 'Escape') onClose();
         };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        document.addEventListener('keydown', onKey);
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = '';
+        };
     }, [onClose]);
 
-    return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="duel-modal" onClick={(e) => e.stopPropagation()}>
+    // Portaal: okno asub otse body-s, nii et teised paneelid seda ei kata
+    return createPortal(
+        <div className="modal-backdrop duel-backdrop" onClick={onClose}>
+            <div
+                className="duel-modal"
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="duel-modal-head">
                     <span>
                         {duel.whiteName} <span className="duel-vs-inline">vs</span> {duel.blackName}
@@ -21,18 +33,21 @@ function DuelModal({ duel, onClose }) {
                     </button>
                 </div>
 
-                <iframe
-                    title={`Mäng ${duel.gameId}`}
-                    src={`https://lichess.org/embed/game/${duel.gameId}?theme=auto&bg=auto`}
-                    className="duel-modal-frame"
-                    allow="fullscreen"
-                />
+                <div className="duel-modal-body">
+                    <iframe
+                        title={`Mäng ${duel.gameId}`}
+                        src={`https://lichess.org/embed/game/${duel.gameId}?theme=auto&bg=auto`}
+                        className="duel-modal-frame"
+                        allow="fullscreen"
+                    />
+                </div>
 
                 <a href={duel.url} target="_blank" rel="noreferrer" className="duel-modal-link">
                     Ava Lichessis ↗
                 </a>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
