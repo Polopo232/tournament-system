@@ -58,6 +58,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(u => u.OrganizedTournaments)
                 .HasForeignKey(t => t.OrganizerId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(t => t.Duels)
+                .WithOne(d => d.Tournament)
+                .HasForeignKey(d => d.TournamentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Registration>(entity =>
