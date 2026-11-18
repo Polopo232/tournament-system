@@ -43,6 +43,10 @@ public class TournamentService(
             filtered = filtered.Where(t =>
                 t.Format.ToString().Equals(queryParams.Format, StringComparison.OrdinalIgnoreCase));
         }
+        else
+        {
+            filtered = filtered.Where(t => t.Format != TournamentFormat.Arena);
+        }
 
         filtered = queryParams.SortBy?.ToLowerInvariant() switch
         {
