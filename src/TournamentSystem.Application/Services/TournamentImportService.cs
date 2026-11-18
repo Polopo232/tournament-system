@@ -245,10 +245,10 @@ public class TournamentImportService(
         tournament.LastSyncedAt = DateTime.UtcNow;
 
         var duels = isFinished
-        ? new List<ExternalDuelInfo>()
-        : await arenaSource.GetDuelsAsync(arena.Id);
+            ? new List<ExternalDuelInfo>()
+            : (await arenaSource.GetDuelsAsync(arena.Id)) ?? new List<ExternalDuelInfo>();
 
-            tournament.Duels.Clear();
+        tournament.Duels.Clear();
             foreach (var d in duels)
             {
                 tournament.Duels.Add(new ExternalDuel
