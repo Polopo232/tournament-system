@@ -244,6 +244,24 @@ public class TournamentImportService(
         tournament.MaxPlayers = Math.Max(tournament.MaxPlayers, tournament.Registrations.Count);
         tournament.LastSyncedAt = DateTime.UtcNow;
 
+        var duels = isFinished
+        ? new List<ExternalDuelInfo>()
+        : await arenaSource.GetDuelsAsync(arena.Id);
+
+            tournament.Duels.Clear();
+            foreach (var d in duels)
+            {
+                tournament.Duels.Add(new ExternalDuel
+                {
+                    GameId = d.GameId,
+                    WhiteName = d.WhiteName,
+                    WhiteRating = d.WhiteRating,
+                    BlackName = d.BlackName,
+                    BlackRating = d.BlackRating,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
         if (isFinished)
         {
             tournament.Status = TournamentStatus.Finished;
