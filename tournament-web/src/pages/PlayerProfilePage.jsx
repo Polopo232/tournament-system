@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { apiClient } from '../api/client';
 import { formatDiscipline } from '../utils/formatters';
+import { PlayerWins } from '../components/PlayerWins';
 
 function EloTooltip({ active, payload }) {
     if (!active || !payload || payload.length === 0) return null;
@@ -125,7 +126,7 @@ export function PlayerProfilePage() {
                 </span>
                 <h1 className="page-title">{profile.displayName}</h1>
             </div>
-
+            <PlayerWins wins={profile.wins} />
             {profile.ratings.length === 0 ? (
                 <div className="panel">
                     <p style={{ margin: 0, color: 'var(--text-muted)' }}>Mängijal pole veel reitingut.</p>

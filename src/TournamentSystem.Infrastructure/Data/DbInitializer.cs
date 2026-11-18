@@ -19,7 +19,7 @@ public static class DbInitializer
         var service = CreateUser("service", "Teenus", "Service123!", UserRole.Service);
 
         string[] nicks = ["Mari", "Jaan", "Kadri", "Rasmus", "Liis", "Oskar", "Anna", "Tiit"];
-        int[] ratings = [1000, 1080, 1000, 1000, 1000, 1000, 1000, 1000];
+        int[] ratings = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
 
         var players = new List<User>();
         for (int i = 0; i < ratings.Length; i++)
@@ -128,8 +128,8 @@ public static class DbInitializer
         };
         for (int i = 0; i < 4; i++) t5.Registrations.Add(new Registration { Player = players[i] });
         t5.Matches.Add(CreatePlayedMatch(players[0], players[3], 13, 16, 1));
-        t5.Matches.Add(CreatePlayedMatch(players[1], players[2], 16, 11, 1));
-        t5.Matches.Add(CreatePlayedMatch(players[3], players[1], 16, 9, 2));
+        t5.Matches.Add(CreatePlayedMatch(players[1], players[2], 13, 11, 1));
+        t5.Matches.Add(CreatePlayedMatch(players[3], players[1], 13, 9, 2));
 
         // 6. Avatud Round Robin maleturniir
         var t6 = new Tournament

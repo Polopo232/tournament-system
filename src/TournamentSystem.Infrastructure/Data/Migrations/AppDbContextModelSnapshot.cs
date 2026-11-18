@@ -22,6 +22,45 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("TournamentSystem.Domain.Entities.ExternalDuel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BlackName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BlackRating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GameId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TournamentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WhiteName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("WhiteRating")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TournamentId");
+
+                    b.ToTable("ExternalDuel");
+                });
+
             modelBuilder.Entity("TournamentSystem.Domain.Entities.Match", b =>
                 {
                     b.Property<int>("Id")
@@ -297,6 +336,17 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("TournamentSystem.Domain.Entities.ExternalDuel", b =>
+                {
+                    b.HasOne("TournamentSystem.Domain.Entities.Tournament", "Tournament")
+                        .WithMany("Duels")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tournament");
+                });
+
             modelBuilder.Entity("TournamentSystem.Domain.Entities.Match", b =>
                 {
                     b.HasOne("TournamentSystem.Domain.Entities.User", "Player1")
@@ -398,6 +448,8 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("TournamentSystem.Domain.Entities.Tournament", b =>
                 {
+                    b.Navigation("Duels");
+
                     b.Navigation("Matches");
 
                     b.Navigation("Registrations");

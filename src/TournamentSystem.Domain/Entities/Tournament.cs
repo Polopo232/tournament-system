@@ -27,4 +27,5 @@ public class Tournament
 
     public List<Registration> Registrations { get; set; } = new();
     public List<Match> Matches { get; set; } = new();
+    public List<ExternalDuel> Duels { get; set; } = new();
 }

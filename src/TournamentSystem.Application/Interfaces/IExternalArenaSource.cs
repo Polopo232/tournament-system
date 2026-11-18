@@ -6,6 +6,8 @@ public record ExternalArena(string Id, string Name, DateTime StartsAt, bool Fini
 /// <summary>Ühe mängija tulemus välisest turniirist.</summary>
 public record ExternalArenaResult(int Rank, string Username, int Score, int Rating = 0);
 
+public record ExternalDuelInfo(string GameId, string WhiteName, int WhiteRating, string BlackName, int BlackRating);
+
 /// <summary>Kokkuvõte arenast nimekirjas (GET /api/tournament).</summary>
 public record ExternalArenaSummary(
     string Id,
@@ -21,4 +23,5 @@ public interface IExternalArenaSource
     Task<ExternalArena?> GetArenaAsync(string arenaId, CancellationToken cancellationToken = default);
     Task<List<ExternalArenaResult>> GetResultsAsync(string arenaId, CancellationToken cancellationToken = default);
     Task<List<ExternalArenaSummary>> GetArenaListAsync(CancellationToken cancellationToken = default);
+    Task<List<ExternalDuelInfo>> GetDuelsAsync(string arenaId, CancellationToken cancellationToken = default);
 }

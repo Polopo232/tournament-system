@@ -181,4 +181,46 @@ public class LichessArenaSource(HttpClient http) : IExternalArenaSource
         root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+
+    public async Task<List<ExternalDuelInfo>> GetDuelsAsync(string arenaId, CancellationToken cancellationToken = default)
+    {
+        using var response = await http.GetAsync(
+            $"/api/tournament/{Uri.EscapeDataString(arenaId)}", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return new List<ExternalDuelInfo>();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        var duels = new List<ExternalDuelInfo>();
+
+        if (!doc.RootElement.TryGetProperty("duels", out var items) || items.ValueKind != JsonValueKind.Array)
+        {
+            return duels;
+        }
+
+        foreach (var duel in items.EnumerateArray())
+        {
+            var gameId = GetString(duel, "id");
+            if (string.IsNullOrWhiteSpace(gameId)) continue;
+            if (!duel.TryGetProperty("p", out var players) || players.ValueKind != JsonValueKind.Array) continue;
+
+            var list = players.EnumerateArray().ToList();
+            if (list.Count < 2) continue;
+
+            duels.Add(new ExternalDuelInfo(
+                gameId,
+                GetString(list[0], "n") ?? "?",
+                GetInt(list[0], "r"),
+                GetString(list[1], "n") ?? "?",
+                GetInt(list[1], "r")));
+        }
+
+        return duels;
+    }
 }

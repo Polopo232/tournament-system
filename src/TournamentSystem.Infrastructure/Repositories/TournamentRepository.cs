@@ -28,6 +28,7 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
                 .ThenInclude(m => m.Player1)
             .Include(t => t.Matches)
                 .ThenInclude(m => m.Player2)
+            .Include(t => t.Duels)
             .FirstOrDefaultAsync(t => t.Id == id);
     }
 
@@ -38,6 +39,7 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
             .Include(t => t.Registrations)
                 .ThenInclude(r => r.Player)
                     .ThenInclude(p => p.Ratings)
+            .Include(t => t.Duels)
             .FirstOrDefaultAsync(t => t.ExternalId == externalId);
     }
 

@@ -158,8 +158,8 @@ public class TournamentImportService(
             }
             catch (Exception ex)
             {
-                // Viga ühes areenas ei peata teisi. Muudatused, mis jäid salvestamata, lähevad järgmise salvestusega kaasa.
                 result.Failed++;
+                result.Errors.Add($"{arena.Id}: {ex.GetType().Name}: {ex.Message}");
                 logger.LogError(ex, "Lichessi arena {ArenaId} sünkroonimine ebaõnnestus.", arena.Id);
             }
         }
@@ -243,6 +243,24 @@ public class TournamentImportService(
 
         tournament.MaxPlayers = Math.Max(tournament.MaxPlayers, tournament.Registrations.Count);
         tournament.LastSyncedAt = DateTime.UtcNow;
+
+        var duels = isFinished
+            ? new List<ExternalDuelInfo>()
+            : (await arenaSource.GetDuelsAsync(arena.Id)) ?? new List<ExternalDuelInfo>();
+
+        tournament.Duels.Clear();
+            foreach (var d in duels)
+            {
+                tournament.Duels.Add(new ExternalDuel
+                {
+                    GameId = d.GameId,
+                    WhiteName = d.WhiteName,
+                    WhiteRating = d.WhiteRating,
+                    BlackName = d.BlackName,
+                    BlackRating = d.BlackRating,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
 
         if (isFinished)
         {

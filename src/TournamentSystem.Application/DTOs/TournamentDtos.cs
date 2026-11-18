@@ -142,6 +142,7 @@ public class TournamentDetailsDto
 
     public List<RegistrationDto> Registrations { get; set; } = [];
     public List<TournamentMatchDto> Matches { get; set; } = [];
+    public List<LiveDuelDto> LiveDuels { get; set; } = new();
 
     public static TournamentDetailsDto FromEntity(Tournament t)
     {
@@ -167,7 +168,15 @@ public class TournamentDetailsDto
                 .OrderBy(m => m.Round)
                 .ThenBy(m => m.Id)
                 .Select(TournamentMatchDto.FromEntity)
-                .ToList() ?? []
+                .ToList() ?? [],
+            LiveDuels = t.Duels.Select(d => new LiveDuelDto
+            {
+                GameId = d.GameId,
+                WhiteName = d.WhiteName,
+                WhiteRating = d.WhiteRating,
+                BlackName = d.BlackName,
+                BlackRating = d.BlackRating
+            }).ToList(),
         };
     }
 
@@ -229,5 +238,15 @@ public class TournamentDetailsDto
                 Status = m.Status.ToString()
             };
         }
+    }
+
+    public class LiveDuelDto
+    {
+        public string GameId { get; set; } = string.Empty;
+        public string WhiteName { get; set; } = string.Empty;
+        public int WhiteRating { get; set; }
+        public string BlackName { get; set; } = string.Empty;
+        public int BlackRating { get; set; }
+        public string Url => $"https://lichess.org/{GameId}";
     }
 }

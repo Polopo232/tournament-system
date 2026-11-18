@@ -121,9 +121,14 @@ public class TournamentImportServiceTests
         _arena.Setup(a => a.GetResultsAsync("abcd1234", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ExternalArenaResult> { new(1, "Magnus", 10), new(2, "Hikaru", 8) });
 
+        _arena.Setup(a => a.GetDuelsAsync("abcd1234", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalDuelInfo>());
+
         var result = await _service.SyncLichessAsync(new[] { "rapid" }, 10, actorId: 1);
 
+        Assert.Empty(result.Errors); // если тут падает, в сообщении будет текст ошибки
         Assert.Equal(1, result.Created);
+
         _tournaments.Verify(t => t.Add(It.Is<Tournament>(x => x.Format == TournamentFormat.Arena
             && x.Status == TournamentStatus.InProgress)), Times.Once);
     }
