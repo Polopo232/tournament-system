@@ -13,4 +13,9 @@ public class RatingHistory
 
     public int? MatchId { get; set; }
     public Match? Match { get; set; }
+
+    /// <summary>
+    /// Turniir, mille tõttu reiting muutus. Välisvõtit ei ole, et turniiri kustutamine ei katkeks.
+    /// </summary>
+    public int? TournamentId { get; set; }
 }

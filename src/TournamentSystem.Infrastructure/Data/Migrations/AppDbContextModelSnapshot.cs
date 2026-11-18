@@ -130,6 +130,9 @@ namespace TournamentSystem.Infrastructure.Data.Migrations
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("TournamentId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("MatchId");

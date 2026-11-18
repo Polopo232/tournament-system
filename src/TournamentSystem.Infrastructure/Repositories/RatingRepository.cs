@@ -81,4 +81,18 @@ public class RatingRepository(AppDbContext db) : IRatingRepository
 
         return (items, total);
     }
+
+    public async Task<List<(RatingHistory History, string? TournamentName)>> GetHistoryWithTournamentAsync(int playerId)
+    {
+        var rows = await (
+            from h in db.RatingHistory
+            where h.PlayerId == playerId
+            join t in db.Tournaments on h.TournamentId equals (int?)t.Id into tournamentJoin
+            from t in tournamentJoin.DefaultIfEmpty()
+            orderby h.CreatedAt
+            select new { h, TournamentName = t != null ? t.Name : null })
+            .ToListAsync();
+
+        return rows.Select(r => (r.h, r.TournamentName)).ToList();
+    }
 }

@@ -106,6 +106,7 @@ public class RatingService(
                 PlayerId = p1Id,
                 MatchId = match.Id,
                 Game = tournament.Game,
+                TournamentId = tournament.Id,
                 OldRating = old1,
                 NewRating = new1,
                 CreatedAt = DateTime.UtcNow
@@ -116,6 +117,7 @@ public class RatingService(
                 PlayerId = p2Id,
                 MatchId = match.Id,
                 Game = tournament.Game,
+                TournamentId = tournament.Id,
                 OldRating = old2,
                 NewRating = new2,
                 CreatedAt = DateTime.UtcNow
@@ -140,10 +142,10 @@ public class RatingService(
             throw new NotFoundException($"Player with ID {playerId} was not found.");
         }
 
-        var history = await ratings.GetByPlayerIdAsync(playerId);
+        var history = await ratings.GetHistoryWithTournamentAsync(playerId);
+
         return history
-            .OrderBy(h => h.CreatedAt)
-            .Select(RatingHistoryDto.FromEntity)
+            .Select(x => RatingHistoryDto.FromEntity(x.History, x.TournamentName))
             .ToList();
     }
 
