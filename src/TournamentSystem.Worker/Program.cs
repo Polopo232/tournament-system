@@ -11,6 +11,7 @@ builder.Services.AddHttpClient<TournamentApiClient>(client =>
 });
 
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<TournamentSystem.Worker.LichessSyncWorker>();
 
 var host = builder.Build();
 host.Run();
