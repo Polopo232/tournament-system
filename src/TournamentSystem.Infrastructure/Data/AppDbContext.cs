@@ -21,6 +21,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(u => u.Email).HasMaxLength(100).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.BanReason).HasConversion<string>().HasMaxLength(30);
+            entity.Property(u => u.Role).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(u => u.Username).IsUnique();
             entity.HasIndex(u => u.DisplayName).IsUnique();
             entity.HasIndex(u => u.Email).IsUnique();
