@@ -40,6 +40,8 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
         var user = await users.GetByUsernameAsync(dto.Username);
+
+        // Parool kontrollitakse enne blokeeringut, et vastus ei paljastaks konto olekut võõrale
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
         {
             logger.LogWarning("Ebaõnnestunud sisselogimiskatse kasutajale: {Username}", dto.Username);
@@ -51,6 +53,9 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
             logger.LogWarning("Blokeeritud kasutaja {Username} proovis sisse logida.", dto.Username);
             throw new ForbiddenException(BanRules.Describe(user));
         }
+
+        logger.LogInformation("Kasutaja {Username} logis edukalt sisse.", dto.Username);
+        return CreateResponse(user);
     }
 
     public async Task<UserDto> GetUserAsync(int id)
