@@ -164,7 +164,7 @@ public class TournamentImportService(
         //    Lõppenud arena kaob Lichessi nimekirjast, seega küsime need üksikult. Korraga kuni 5.
         var listedIds = arenas.Select(a => a.Id).ToHashSet();
 
-        var stale = (await tournaments.GetAllAsync())
+        var stale = ((await tournaments.GetAllAsync()) ?? new List<Tournament>())
             .Where(t => t.ExternalId != null
                         && t.ExternalId.StartsWith("lichess:")
                         && t.Status == TournamentStatus.InProgress
