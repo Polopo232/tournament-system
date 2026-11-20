@@ -8,10 +8,21 @@ namespace TournamentSystem.Application.Services;
 
 public class UserService(IUserRepository users, ILogger<UserService> logger) : IUserService
 {
-    public async Task<List<UserDto>> GetAllAsync()
+    public async Task<UserPageDto> GetPagedAsync(UserQueryParams query)
     {
-        var list = await users.GetAllAsync();
-        return list.Select(UserDto.FromEntity).ToList();
+        var (items, total) = await users.GetPagedAsync(query);
+
+        var page = Math.Max(1, query.Page);
+        var size = Math.Clamp(query.PageSize, 1, 100);
+
+        return new UserPageDto
+        {
+            Items = items.Select(UserDto.FromEntity).ToList(),
+            TotalCount = total,
+            Page = page,
+            PageSize = size,
+            TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)size))
+        };
     }
 
     public async Task<UserDto> ChangeRoleAsync(int id, string role)
@@ -19,10 +30,15 @@ public class UserService(IUserRepository users, ILogger<UserService> logger) : I
         var user = await users.GetByIdAsync(id)
             ?? throw new NotFoundException($"User with ID {id} was not found.");
 
-        user.Role = Enum.Parse<UserRole>(role);
+        if (!Enum.TryParse<UserRole>(role, true, out var parsed))
+        {
+            throw new ValidationException($"Unknown role: {role}.");
+        }
+
+        user.Role = parsed;
         await users.SaveChangesAsync();
 
-        logger.LogInformation("Kasutaja (ID: {UserId}) uus roll on {Role}", id, role);
+        logger.LogInformation("Kasutaja (ID: {UserId}) uus roll on {Role}", id, parsed);
         return UserDto.FromEntity(user);
     }
 }
