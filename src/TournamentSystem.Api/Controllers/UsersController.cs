@@ -6,7 +6,7 @@ using TournamentSystem.Application.Interfaces;
 namespace TournamentSystem.Api.Controllers;
 
 /// <summary>
-/// Kasutajate haldamise lõpppunktid (ainult administraatorile).
+/// Kasutajate haldamise lõpp-punktid (ainult administraatorile).
 /// </summary>
 [ApiController]
 [Route("api/users")]
@@ -15,22 +15,31 @@ namespace TournamentSystem.Api.Controllers;
 public class UsersController(IUserService userService) : ControllerBase
 {
     /// <summary>
-    /// Tagastab kõigi registreeritud kasutajate nimekirja.
+    /// Tagastab kasutajad lehekülgede kaupa. Toetab otsingut, rolli- ja allikafiltrit ning sortimist.
     /// </summary>
+    /// <param name="query">
+    /// search: otsing nime, logini või e-posti järgi;
+    /// role: Admin, Organizer, Player, Service;
+    /// source: local või lichess;
+    /// sortBy: name, newest, role;
+    /// page, pageSize: lehekülg ja ridade arv (kuni 100).
+    /// </param>
     [HttpGet]
-    [ProducesResponseType(typeof(List<UserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<List<UserDto>>> GetAll()
+    public async Task<ActionResult<UserPageDto>> GetAll([FromQuery] UserQueryParams query)
     {
-        return Ok(await userService.GetAllAsync());
+        var result = await userService.GetPagedAsync(query);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Muudab valitud kasutaja rolli süsteemis.
+    /// Muudab valitud kasutaja rolli.
     /// </summary>
-    [HttpPut("{id}/role")]
+    [HttpPut("{id:int}/role")]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
