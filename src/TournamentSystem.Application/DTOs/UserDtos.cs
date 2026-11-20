@@ -9,11 +9,9 @@ public class UserDto
     /// <example>1</example>
     public int Id { get; set; }
 
-    /// <summary>Sisselogimise kasutajanimi.</summary>
     /// <example>player1</example>
     public string Username { get; set; } = string.Empty;
 
-    /// <summary>Avalik nick.</summary>
     /// <example>Mari</example>
     public string DisplayName { get; set; } = string.Empty;
 
@@ -23,9 +21,16 @@ public class UserDto
     /// <example>Player</example>
     public string Role { get; set; } = string.Empty;
 
-    /// <summary>Kas konto on blokeeritud.</summary>
+    /// <summary>Kas konto on praegu blokeeritud.</summary>
     /// <example>false</example>
     public bool IsBlocked { get; set; }
+
+    /// <summary>Blokeerimise põhjus.</summary>
+    /// <example>Cheating</example>
+    public string? BanReason { get; set; }
+
+    /// <summary>Blokeeringu lõpp. Tühi tähendab püsivat blokeeringut.</summary>
+    public DateTime? BlockedUntil { get; set; }
 
     public static UserDto FromEntity(User user)
     {
@@ -36,7 +41,9 @@ public class UserDto
             DisplayName = user.DisplayName,
             Email = user.Email,
             Role = user.Role.ToString(),
-            IsBlocked = user.IsBlocked
+            IsBlocked = user.IsBlocked,
+            BanReason = user.BanReason?.ToString(),
+            BlockedUntil = user.BlockedUntil
         };
     }
 }
@@ -56,4 +63,12 @@ public class BlockUserDto
     /// <summary>true blokeerib konto, false avab selle.</summary>
     /// <example>true</example>
     public bool IsBlocked { get; set; }
+
+    /// <summary>Põhjus: Cheating, Smurfing, BanEvasion, StreamSniping, MatchIntegrity, SevereAbuse.</summary>
+    /// <example>Cheating</example>
+    public string? Reason { get; set; }
+
+    /// <summary>Kestus: Day1, Days3, Week1, Month1, Year1, Years5, Permanent.</summary>
+    /// <example>Years5</example>
+    public string? Duration { get; set; }
 }

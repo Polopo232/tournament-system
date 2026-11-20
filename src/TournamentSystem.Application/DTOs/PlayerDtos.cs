@@ -7,6 +7,20 @@ public class PlayerProfileDto
     public string DisplayName { get; set; } = string.Empty;
     public List<PlayerRatingDto> Ratings { get; set; } = new();
     public List<PlayerWinDto> Wins { get; set; } = new();
+
+    /// <summary>Blokeering, kui konto on praegu blokeeritud. Muul juhul tühi.</summary>
+    public BanInfoDto? Ban { get; set; }
+}
+
+/// <summary>Aktiivne blokeering, mis kuvatakse profiilil.</summary>
+public class BanInfoDto
+{
+    /// <example>Cheating</example>
+    public string Reason { get; set; } = string.Empty;
+
+    public DateTime? BlockedUntil { get; set; }
+
+    public bool IsPermanent => BlockedUntil == null;
 }
 
 /// <summary>Edetabeli rida.</summary>

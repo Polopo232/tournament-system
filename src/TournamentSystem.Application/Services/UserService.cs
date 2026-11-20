@@ -42,7 +42,7 @@ public class UserService(IUserRepository users, ILogger<UserService> logger) : I
         return UserDto.FromEntity(user);
     }
 
-    public async Task<UserDto> SetBlockedAsync(int id, bool isBlocked, int actorId)
+    public async Task<UserDto> SetBlockedAsync(int id, BlockUserDto dto, int actorId)
     {
         if (id == actorId)
         {
@@ -52,11 +52,26 @@ public class UserService(IUserRepository users, ILogger<UserService> logger) : I
         var user = await users.GetByIdAsync(id)
             ?? throw new NotFoundException($"User with ID {id} was not found.");
 
-        user.IsBlocked = isBlocked;
+        var now = DateTime.UtcNow;
+
+        if (dto.IsBlocked)
+        {
+            user.BanReason = BanRules.ParseReason(dto.Reason);
+            user.BlockedAt = now;
+            user.BlockedUntil = BanRules.ResolveBlockedUntil(dto.Duration, now);
+        }
+        else
+        {
+            user.BanReason = null;
+            user.BlockedAt = null;
+            user.BlockedUntil = null;
+        }
+
         await users.SaveChangesAsync();
 
-        logger.LogInformation("Kasutaja (ID: {UserId}) blokeeritud: {IsBlocked}, administraator {ActorId}",
-            id, isBlocked, actorId);
+        logger.LogInformation(
+            "Kasutaja (ID: {UserId}) blokeering: {IsBlocked}, põhjus {Reason}, kestus {Duration}, administraator {ActorId}",
+            id, dto.IsBlocked, dto.Reason, dto.Duration, actorId);
 
         return UserDto.FromEntity(user);
     }

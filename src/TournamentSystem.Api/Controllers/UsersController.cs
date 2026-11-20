@@ -55,7 +55,7 @@ public class UsersController(IUserService userService) : ControllerBase
     public async Task<ActionResult<UserDto>> SetBlocked(int id, BlockUserDto dto)
     {
         var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var user = await userService.SetBlockedAsync(id, dto.IsBlocked, actorId);
+        var user = await userService.SetBlockedAsync(id, dto, actorId);
         return Ok(user);
     }
 }

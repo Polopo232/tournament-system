@@ -168,7 +168,6 @@ public class RatingService(
 
         var playerRatings = await ratings.GetPlayerRatingsAsync(playerId);
 
-        // Võidud: turniirid, kus võitjaks on see mängija
         var wins = (await tournaments.GetAllAsync())
             .Where(t => t.WinnerId == playerId)
             .OrderByDescending(t => t.StartDate)
@@ -187,7 +186,14 @@ public class RatingService(
             Id = player.Id,
             DisplayName = player.DisplayName,
             Ratings = playerRatings.Select(PlayerRatingDto.FromEntity).ToList(),
-            Wins = wins
+            Wins = wins,
+            Ban = player.IsBlocked
+                ? new BanInfoDto
+                {
+                    Reason = player.BanReason!.Value.ToString(),
+                    BlockedUntil = player.BlockedUntil
+                }
+                : null
         };
     }
 

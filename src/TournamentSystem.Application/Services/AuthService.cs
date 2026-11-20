@@ -49,10 +49,8 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
         if (user.IsBlocked)
         {
             logger.LogWarning("Blokeeritud kasutaja {Username} proovis sisse logida.", dto.Username);
-            throw new ForbiddenException("This account is blocked. Contact the administrator.");
+            throw new ForbiddenException(BanRules.Describe(user));
         }
-        logger.LogInformation("Kasutaja {Username} logis edukalt sisse.", dto.Username);
-        return CreateResponse(user);
     }
 
     public async Task<UserDto> GetUserAsync(int id)
