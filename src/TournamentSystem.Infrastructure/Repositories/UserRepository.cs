@@ -66,7 +66,9 @@ public class UserRepository(AppDbContext db) : IUserRepository
 
     public Task<User?> GetByUsernameAsync(string username)
     {
-        return db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        return db.Users
+            .Include(u => u.Ratings)
+            .FirstOrDefaultAsync(u => u.Username == username);
     }
 
     public Task<User?> GetByEmailAsync(string email)

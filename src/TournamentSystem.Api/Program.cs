@@ -39,12 +39,14 @@ builder.Services.AddScoped<ITournamentService, TournamentService>();
 builder.Services.AddScoped<IBracketService, BracketService>();
 
 builder.Services.AddScoped<ITournamentImportService, TournamentImportService>();
+builder.Services.AddTransient<LichessRateLimitHandler>();
 
 builder.Services.AddHttpClient<IExternalArenaSource, LichessArenaSource>(client =>
 {
     client.BaseAddress = new Uri("https://lichess.org");
     client.DefaultRequestHeaders.UserAgent.ParseAdd("TournamentSystem/1.0 (school project)");
-});
+})
+.AddHttpMessageHandler<LichessRateLimitHandler>();
 
 builder.Services.AddSingleton<EloCalculatorService>();
 builder.Services.AddScoped<IMatchService, MatchService>();

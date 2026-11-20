@@ -138,6 +138,7 @@ public class TournamentImportService(
 
         var result = new LichessSyncResultDto();
 
+        // 1. Praegu nimekirjas olevad arenad
         foreach (var arena in wanted)
         {
             if (!LichessIdPattern.IsMatch(arena.Id))
@@ -148,19 +149,58 @@ public class TournamentImportService(
 
             try
             {
-                switch (await SyncArenaAsync(arena, actorId))
-                {
-                    case SyncOutcome.Created: result.Created++; break;
-                    case SyncOutcome.Updated: result.Updated++; break;
-                    case SyncOutcome.Finished: result.Finished++; break;
-                    default: result.Skipped++; break;
-                }
+                CountOutcome(result, await SyncArenaAsync(arena, actorId));
             }
             catch (Exception ex)
             {
+                tournaments.DiscardPendingChanges();
                 result.Failed++;
                 result.Errors.Add($"{arena.Id}: {ex.GetType().Name}: {ex.Message}");
                 logger.LogError(ex, "Lichessi arena {ArenaId} sünkroonimine ebaõnnestus.", arena.Id);
+            }
+        }
+
+        // 2. Andmebaasis pooleli arenad, mida nimekirjas enam ei ole.
+        //    Lõppenud arena kaob Lichessi nimekirjast, seega küsime need üksikult. Korraga kuni 5.
+        var listedIds = arenas.Select(a => a.Id).ToHashSet();
+
+        var stale = (await tournaments.GetAllAsync())
+            .Where(t => t.ExternalId != null
+                        && t.ExternalId.StartsWith("lichess:")
+                        && t.Status == TournamentStatus.InProgress
+                        && !listedIds.Contains(t.ExternalId["lichess:".Length..]))
+            .Take(5)
+            .ToList();
+
+        foreach (var t in stale)
+        {
+            var arenaId = t.ExternalId!["lichess:".Length..];
+
+            try
+            {
+                var info = await arenaSource.GetArenaAsync(arenaId);
+                if (info == null)
+                {
+                    result.Skipped++;
+                    continue;
+                }
+
+                var summary = new ExternalArenaSummary(
+                    arenaId,
+                    info.Name,
+                    ParsePerf(t.Game),
+                    0,
+                    info.Finished ? FinishedStatus : 20,
+                    info.StartsAt);
+
+                CountOutcome(result, await SyncArenaAsync(summary, actorId));
+            }
+            catch (Exception ex)
+            {
+                tournaments.DiscardPendingChanges();
+                result.Failed++;
+                result.Errors.Add($"{arenaId}: {ex.GetType().Name}: {ex.Message}");
+                logger.LogError(ex, "Lichessi arena {ArenaId} (pooleli olev) sünkroonimine ebaõnnestus.", arenaId);
             }
         }
 
@@ -325,5 +365,24 @@ public class TournamentImportService(
         var old = entry.Rating;
         entry.Rating = rating;
         return (old, rating);
+    }
+
+    private static void CountOutcome(LichessSyncResultDto result, SyncOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case SyncOutcome.Created: result.Created++; break;
+            case SyncOutcome.Updated: result.Updated++; break;
+            case SyncOutcome.Finished: result.Finished++; break;
+            default: result.Skipped++; break;
+        }
+    }
+
+    /// <summary>Võtab kategooria nimest, näiteks "Chess (rapid)" → "rapid".</summary>
+    private static string ParsePerf(string game)
+    {
+        var open = game.IndexOf('(');
+        var close = game.LastIndexOf(')');
+        return open >= 0 && close > open ? game[(open + 1)..close] : "rapid";
     }
 }
