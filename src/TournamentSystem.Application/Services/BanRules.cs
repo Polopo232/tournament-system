@@ -8,6 +8,7 @@ public static class BanRules
 {
     private static readonly Dictionary<string, TimeSpan?> Durations = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["Minute1"] = TimeSpan.FromMinutes(1),
         ["Day1"] = TimeSpan.FromDays(1),
         ["Days3"] = TimeSpan.FromDays(3),
         ["Week1"] = TimeSpan.FromDays(7),

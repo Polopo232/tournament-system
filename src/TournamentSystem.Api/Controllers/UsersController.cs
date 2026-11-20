@@ -13,7 +13,7 @@ namespace TournamentSystem.Api.Controllers;
 [Route("api/users")]
 [Authorize(Roles = "Admin")]
 [Produces("application/json")]
-public class UsersController(IUserService userService) : ControllerBase
+public class UsersController(IUserService userService, IWebHostEnvironment env) : ControllerBase
 {
     /// <summary>
     /// Tagastab kasutajad lehekülgede kaupa. Toetab otsingut, rolli- ja allikafiltrit ning sortimist.
@@ -56,6 +56,14 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var user = await userService.SetBlockedAsync(id, dto, actorId);
+        if (dto.Duration == "Minute1" && !env.IsDevelopment())
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid ban duration",
+                Detail = "The one-minute test duration is available only in Development."
+            });
+        }
         return Ok(user);
     }
 }

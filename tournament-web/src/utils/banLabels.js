@@ -8,6 +8,7 @@ export const BAN_REASONS = [
 ];
 
 export const BAN_DURATIONS = [
+    { value: 'Minute1', label: 'Test: 1 minut' },
     { value: 'Day1', label: '1 päev' },
     { value: 'Days3', label: '3 päeva' },
     { value: 'Week1', label: '1 nädal' },
