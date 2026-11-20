@@ -54,8 +54,6 @@ public class UsersController(IUserService userService, IWebHostEnvironment env) 
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserDto>> SetBlocked(int id, BlockUserDto dto)
     {
-        var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var user = await userService.SetBlockedAsync(id, dto, actorId);
         if (dto.Duration == "Minute1" && !env.IsDevelopment())
         {
             return BadRequest(new ProblemDetails
@@ -64,6 +62,9 @@ public class UsersController(IUserService userService, IWebHostEnvironment env) 
                 Detail = "The one-minute test duration is available only in Development."
             });
         }
+
+        var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await userService.SetBlockedAsync(id, dto, actorId);
         return Ok(user);
     }
 }

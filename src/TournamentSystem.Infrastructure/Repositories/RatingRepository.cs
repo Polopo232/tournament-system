@@ -90,7 +90,7 @@ public class RatingRepository(AppDbContext db) : IRatingRepository
             join t in db.Tournaments on h.TournamentId equals (int?)t.Id into tournamentJoin
             from t in tournamentJoin.DefaultIfEmpty()
             orderby h.CreatedAt
-            select new { h, TournamentName = t != null ? t.Name : null })
+            select new { h, TournamentName = (string?)(t != null ? t.Name : null) })
             .ToListAsync();
 
         return rows.Select(r => (r.h, r.TournamentName)).ToList();

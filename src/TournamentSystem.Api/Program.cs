@@ -58,8 +58,6 @@ builder.Services.AddScoped<ITournamentNotifier, SignalRTournamentNotifier>();
 
 builder.Services.AddScoped<ITournamentFinishService, TournamentFinishService>();
 
-const string ReactCorsPolicy = "ReactClientPolicy";
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
