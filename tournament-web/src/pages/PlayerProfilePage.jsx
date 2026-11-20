@@ -207,7 +207,7 @@ export function PlayerProfilePage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {gameItems.map((h) => (
+                                        {[...gameItems].reverse().map((h) => (
                                             <tr key={h.id}>
                                                 <td>{new Date(h.createdAt).toLocaleString('et-EE')}</td>
                                                 <td>

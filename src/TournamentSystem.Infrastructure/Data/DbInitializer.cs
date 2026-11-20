@@ -180,6 +180,16 @@ public static class DbInitializer
         t8.Matches.Add(CreatePlayedMatch(players[5], players[6], 2, 1, 1));
         t8.Matches.Add(CreatePlayedMatch(players[7], players[5], 2, 0, 2));
 
+        // Demoturniirid: tulemused on sisestatud, aga Elo on veel arvutamata.
+        // Matšid peavad jääma arvutamata, muidu Elo-arvutus neid vahele jätab.
+        foreach (var m in t5.Matches.Concat(t8.Matches))
+        {
+            m.RatingsUpdated = false;
+        }
+
+        // Võitja vastab finaalmängule (viimane voor)
+        t5.Winner = players[3];
+        t8.Winner = players[7];
         db.Tournaments.AddRange(t1, t2, t3, t4, t5, t6, t7, t8);
         await db.SaveChangesAsync();
     }
