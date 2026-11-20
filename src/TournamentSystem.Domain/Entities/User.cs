@@ -8,6 +8,10 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Player;
+
+    /// <summary>Blokeeritud kasutaja ei saa sisse logida ega kasutada juba väljastatud tokenit.</summary>
+    public bool IsBlocked { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<Tournament> OrganizedTournaments { get; set; } = new();
