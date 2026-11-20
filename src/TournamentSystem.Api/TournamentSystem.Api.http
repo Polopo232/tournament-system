@@ -4,6 +4,12 @@
 @playerId = 4
 @arenaId = 4gJWpSEN
 
+# Tokenid: käivita login päring, kopeeri väärtus "token" vastusest ja kleebi siia
+@orgToken =
+@playerToken =
+@adminToken =
+@serviceToken =
+
 ### ============================================================
 ### 1. Autentimine
 ### Käivita enne kõiki kaitstud päringuid. Token salvestatakse
