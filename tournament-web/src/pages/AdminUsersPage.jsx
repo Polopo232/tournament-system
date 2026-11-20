@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 import { apiClient, getStoredUser } from '../api/client';
+import {
+    BAN_DURATIONS,
+    BAN_REASONS,
+    RECOMMENDED_DURATION,
+    durationLabel,
+    formatUntil,
+    shortReason,
+} from '../utils/banLabels';
 
 const ROLES = ['Admin', 'Organizer', 'Player', 'Service'];
 
@@ -37,7 +45,10 @@ export function AdminUsersPage() {
     const [error, setError] = useState(null);
     const [message, setMessage] = useState(null);
 
-    // Otsing: päring läheb välja 300 ms pärast viimast klahvivajutust
+    const [banTarget, setBanTarget] = useState(null);
+    const [banReason, setBanReason] = useState('Cheating');
+    const [banDuration, setBanDuration] = useState(RECOMMENDED_DURATION.Cheating);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearch(searchInput.trim());
@@ -91,6 +102,53 @@ export function AdminUsersPage() {
         }
     };
 
+    const openBan = (user) => {
+        setBanTarget(user);
+        setBanReason('Cheating');
+        setBanDuration(RECOMMENDED_DURATION.Cheating);
+    };
+
+    const submitBan = async (e) => {
+        e.preventDefault();
+
+        try {
+            setError(null);
+            setMessage(null);
+            await apiClient.put(`/api/users/${banTarget.id}/block`, {
+                isBlocked: true,
+                reason: banReason,
+                duration: banDuration,
+            });
+            setMessage(`${banTarget.displayName} on blokeeritud.`);
+            setBanTarget(null);
+            setReloadKey((k) => k + 1);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Blokeerimine ebaõnnestus.');
+        }
+    };
+
+    const unblock = async (user) => {
+        if (!window.confirm(`Kas avada kasutaja "${user.displayName}"?`)) return;
+
+        try {
+            setError(null);
+            setMessage(null);
+            await apiClient.put(`/api/users/${user.id}/block`, { isBlocked: false });
+            setMessage(`${user.displayName} on avatud.`);
+            setReloadKey((k) => k + 1);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Konto avamine ebaõnnestus.');
+        }
+    };
+
+    const toggleBlock = (user) => {
+        if (user.isBlocked) {
+            unblock(user);
+        } else {
+            openBan(user);
+        }
+    };
+
     const resetFilters = () => {
         setSearchInput('');
         setSearch('');
@@ -109,7 +167,7 @@ export function AdminUsersPage() {
                     <span className="hero-kicker">Admin</span>
                     <h1 className="hero-title" style={{ fontSize: 40 }}>Kasutajad</h1>
                     <p className="hero-sub">
-                        Otsi kasutajaid, filtreeri rolli ja allika järgi ning muuda rolle.
+                        Otsi kasutajaid, filtreeri rolli ja allika järgi, muuda rolle ja blokeeri kontosid.
                     </p>
                 </div>
                 <div className="hero-stat">
@@ -204,6 +262,7 @@ export function AdminUsersPage() {
                                     <th>E-post</th>
                                     <th>Allikas</th>
                                     <th>Roll</th>
+                                    <th>Konto</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -212,7 +271,7 @@ export function AdminUsersPage() {
                                     const isMe = me && Number(me.id) === u.id;
 
                                     return (
-                                        <tr key={u.id}>
+                                        <tr key={u.id} style={u.isBlocked ? { opacity: 0.75 } : undefined}>
                                             <td>
                                                 <strong>{u.displayName}</strong>{' '}
                                                 <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
@@ -246,6 +305,38 @@ export function AdminUsersPage() {
                                                     ))}
                                                 </select>
                                             </td>
+                                            <td>
+                                                {u.isBlocked ? (
+                                                    <div style={{ marginBottom: 6 }}>
+                                                        <span
+                                                            className="badge"
+                                                            style={{ color: 'var(--danger)', borderColor: 'rgba(255, 77, 109, 0.4)' }}
+                                                        >
+                                                            {shortReason(u.banReason)}
+                                                        </span>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                                                            kuni {formatUntil(u)}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ marginBottom: 6, color: 'var(--text-muted)', fontSize: 13 }}>
+                                                        Aktiivne
+                                                    </div>
+                                                )}
+                                                <button
+                                                    className="btn btn-sm"
+                                                    style={
+                                                        u.isBlocked
+                                                            ? { border: '1px solid var(--border-strong)' }
+                                                            : { background: 'var(--danger-soft)', color: 'var(--danger)' }
+                                                    }
+                                                    disabled={isMe || loading}
+                                                    title={isMe ? 'Oma kontot ei saa blokeerida' : undefined}
+                                                    onClick={() => toggleBlock(u)}
+                                                >
+                                                    {u.isBlocked ? 'Ava' : 'Blokeeri'}
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -270,6 +361,68 @@ export function AdminUsersPage() {
                     >
                         →
                     </button>
+                </div>
+            )}
+
+            {banTarget && (
+                <div className="modal-backdrop" onClick={() => setBanTarget(null)}>
+                    <div
+                        className="modal-box"
+                        style={{ maxWidth: 520 }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: '0 0 6px' }}>Blokeeri kasutaja</h3>
+                        <p style={{ margin: '0 0 18px', color: 'var(--text-muted)' }}>
+                            {banTarget.displayName} (@{banTarget.username})
+                        </p>
+
+                        <form onSubmit={submitBan}>
+                            <div className="form-group">
+                                <label className="form-label">Põhjus</label>
+                                <select
+                                    className="select"
+                                    value={banReason}
+                                    onChange={(e) => {
+                                        setBanReason(e.target.value);
+                                        setBanDuration(RECOMMENDED_DURATION[e.target.value]);
+                                    }}
+                                >
+                                    {BAN_REASONS.map((r) => (
+                                        <option key={r.value} value={r.value}>{r.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Kestus</label>
+                                <select
+                                    className="select"
+                                    value={banDuration}
+                                    onChange={(e) => setBanDuration(e.target.value)}
+                                >
+                                    {BAN_DURATIONS.map((d) => (
+                                        <option key={d.value} value={d.value}>{d.label}</option>
+                                    ))}
+                                </select>
+                                <small style={{ color: 'var(--text-muted)' }}>
+                                    Soovitus: {durationLabel(RECOMMENDED_DURATION[banReason])}
+                                </small>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                                <button type="button" className="btn btn-outline" onClick={() => setBanTarget(null)}>
+                                    Tühista
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn"
+                                    style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+                                >
+                                    Blokeeri
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

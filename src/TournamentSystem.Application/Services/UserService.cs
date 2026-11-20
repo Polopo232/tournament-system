@@ -41,4 +41,38 @@ public class UserService(IUserRepository users, ILogger<UserService> logger) : I
         logger.LogInformation("Kasutaja (ID: {UserId}) uus roll on {Role}", id, parsed);
         return UserDto.FromEntity(user);
     }
+
+    public async Task<UserDto> SetBlockedAsync(int id, BlockUserDto dto, int actorId)
+    {
+        if (id == actorId)
+        {
+            throw new ValidationException("You cannot block your own account.");
+        }
+
+        var user = await users.GetByIdAsync(id)
+            ?? throw new NotFoundException($"User with ID {id} was not found.");
+
+        var now = DateTime.UtcNow;
+
+        if (dto.IsBlocked)
+        {
+            user.BanReason = BanRules.ParseReason(dto.Reason);
+            user.BlockedAt = now;
+            user.BlockedUntil = BanRules.ResolveBlockedUntil(dto.Duration, now);
+        }
+        else
+        {
+            user.BanReason = null;
+            user.BlockedAt = null;
+            user.BlockedUntil = null;
+        }
+
+        await users.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Kasutaja (ID: {UserId}) blokeering: {IsBlocked}, põhjus {Reason}, kestus {Duration}, administraator {ActorId}",
+            id, dto.IsBlocked, dto.Reason, dto.Duration, actorId);
+
+        return UserDto.FromEntity(user);
+    }
 }

@@ -12,6 +12,7 @@ import {
 import { apiClient } from '../api/client';
 import { formatDiscipline } from '../utils/formatters';
 import { PlayerWins } from '../components/PlayerWins';
+import { formatUntil, shortReason } from '../utils/banLabels';
 
 function EloTooltip({ active, payload }) {
     if (!active || !payload || payload.length === 0) return null;
@@ -126,6 +127,12 @@ export function PlayerProfilePage() {
                 </span>
                 <h1 className="page-title">{profile.displayName}</h1>
             </div>
+            {profile.ban && (
+                <div className="alert-error" style={{ marginBottom: 20 }}>
+                    <strong>Konto on blokeeritud.</strong>{' '}
+                    Põhjus: {shortReason(profile.ban.reason)}. Kehtib kuni: {formatUntil(profile.ban)}.
+                </div>
+            )}
             <PlayerWins wins={profile.wins} />
             {profile.ratings.length === 0 ? (
                 <div className="panel">
