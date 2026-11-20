@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 using TournamentSystem.Api.Hubs;
 using TournamentSystem.Api.Middleware;
@@ -98,6 +99,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
 
                 return Task.CompletedTask;
+            }
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var users = context.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+                var idClaim = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (!int.TryParse(idClaim, out var userId))
+                {
+                    context.Fail("Invalid token.");
+                    return;
+                }
+
+                var user = await users.GetByIdAsync(userId);
+                if (user == null || user.IsBlocked)
+                {
+                    context.Fail("Account is blocked or no longer exists.");
+                }
             }
         };
     });

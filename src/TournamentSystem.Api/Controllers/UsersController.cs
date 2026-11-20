@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TournamentSystem.Application.DTOs;
 using TournamentSystem.Application.Interfaces;
 
@@ -17,13 +18,6 @@ public class UsersController(IUserService userService) : ControllerBase
     /// <summary>
     /// Tagastab kasutajad lehekülgede kaupa. Toetab otsingut, rolli- ja allikafiltrit ning sortimist.
     /// </summary>
-    /// <param name="query">
-    /// search: otsing nime, logini või e-posti järgi;
-    /// role: Admin, Organizer, Player, Service;
-    /// source: local või lichess;
-    /// sortBy: name, newest, role;
-    /// page, pageSize: lehekülg ja ridade arv (kuni 100).
-    /// </param>
     [HttpGet]
     [ProducesResponseType(typeof(UserPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -46,6 +40,22 @@ public class UsersController(IUserService userService) : ControllerBase
     public async Task<ActionResult<UserDto>> ChangeRole(int id, ChangeRoleDto dto)
     {
         var user = await userService.ChangeRoleAsync(id, dto.Role);
+        return Ok(user);
+    }
+
+    /// <summary>
+    /// Blokeerib või avab kasutaja konto. Enda kontot blokeerida ei saa.
+    /// </summary>
+    [HttpPut("{id:int}/block")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserDto>> SetBlocked(int id, BlockUserDto dto)
+    {
+        var actorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await userService.SetBlockedAsync(id, dto.IsBlocked, actorId);
         return Ok(user);
     }
 }

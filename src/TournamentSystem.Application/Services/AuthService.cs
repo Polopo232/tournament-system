@@ -46,6 +46,11 @@ public class AuthService(IUserRepository users, ITokenService tokenService, ILog
             throw new UnauthorizedAccessException("Wrong username or password.");
         }
 
+        if (user.IsBlocked)
+        {
+            logger.LogWarning("Blokeeritud kasutaja {Username} proovis sisse logida.", dto.Username);
+            throw new ForbiddenException("This account is blocked. Contact the administrator.");
+        }
         logger.LogInformation("Kasutaja {Username} logis edukalt sisse.", dto.Username);
         return CreateResponse(user);
     }
