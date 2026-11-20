@@ -12,4 +12,7 @@ public interface ITournamentRepository
     void Remove(Tournament tournament);
     void AddRegistration(Registration registration);
     Task SaveChangesAsync();
+
+    /// <summary>Eemaldab salvestamata muudatused, et üks viga ei mõjutaks järgmist.</summary>
+    void DiscardPendingChanges();
 }

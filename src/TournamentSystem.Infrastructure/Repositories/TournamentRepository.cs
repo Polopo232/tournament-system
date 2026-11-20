@@ -56,4 +56,6 @@ public class TournamentRepository(AppDbContext db) : ITournamentRepository
     public void AddRegistration(Registration registration) => db.Registrations.Add(registration);
 
     public async Task SaveChangesAsync() => await db.SaveChangesAsync();
+
+    public void DiscardPendingChanges() => db.ChangeTracker.Clear();
 }
