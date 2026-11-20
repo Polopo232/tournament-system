@@ -18,17 +18,31 @@ public class PagedResultDto<T>
 /// <summary>
 /// Turniiride otsimise, filtreerimise, sorteerimise ja lehekülgede parameetrid.
 /// </summary>
+/// <summary>
+/// Turniiride otsimise, filtreerimise, sorteerimise ja lehekülgede parameetrid.
+/// </summary>
 public class TournamentQueryParams
 {
+    /// <summary>Otsing turniiri nime järgi.</summary>
     public string? Search { get; set; }
+
+    /// <summary>Staatus: Registration, InProgress või Finished.</summary>
     public string? Status { get; set; }
+
+    /// <summary>Mäng: Chess, CS2, Dota2 või TableTennis. Chess leiab ka Chess (rapid) arenad.</summary>
     public string? Discipline { get; set; }
+
+    /// <summary>Formaat: SingleElimination, RoundRobin või Arena.</summary>
     public string? Format { get; set; }
+
+    /// <summary>Sortimine: startdate, participants, name, maxplayers. Tühi väärtus annab uuemad enne.</summary>
     public string? SortBy { get; set; }
 
+    /// <summary>Lehekülg, alates 1.</summary>
     [Range(1, int.MaxValue)]
     public int Page { get; set; } = 1;
 
+    /// <summary>Ridade arv lehel (1–100).</summary>
     [Range(1, 100)]
     public int PageSize { get; set; } = 10;
 }
@@ -38,25 +52,37 @@ public class TournamentQueryParams
 /// </summary>
 public class CreateTournamentDto : IValidatableObject
 {
+    /// <summary>Turniiri nimi (3–100 märki).</summary>
+    /// <example>Tallinn CS2 Weekend Cup</example>
     [Required(ErrorMessage = "Turniiri nimi on kohustuslik.")]
     [StringLength(100, MinimumLength = 3)]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Mäng või distsipliin: Chess, CS2, Dota2, TableTennis.</summary>
+    /// <example>CS2</example>
     [Required(ErrorMessage = "Mäng/distsipliin on kohustuslik.")]
     [StringLength(50)]
     public string Game { get; set; } = string.Empty;
 
+    /// <summary>Lühikirjeldus (kuni 500 märki).</summary>
+    /// <example>Avatud 1v1 aim-turniir kõigile mängijatele.</example>
     [StringLength(500)]
     public string? Description { get; set; }
 
+    /// <summary>Turniiri formaat: SingleElimination või RoundRobin.</summary>
+    /// <example>SingleElimination</example>
     [Required]
     [EnumDataType(typeof(TournamentFormat))]
     public string Format { get; set; } = nameof(TournamentFormat.SingleElimination);
 
+    /// <summary>Osalejate maksimaalne arv (paarisarv, 2–512).</summary>
+    /// <example>8</example>
     [Required]
     [Range(2, 512, ErrorMessage = "Mängijate maksimaalne arv peab olema vähemalt 2.")]
     public int MaxPlayers { get; set; }
 
+    /// <summary>Turniiri algusaeg (ISO 8601, UTC).</summary>
+    /// <example>2026-12-01T18:00:00Z</example>
     [Required]
     public DateTime StartDate { get; set; }
 
@@ -76,29 +102,43 @@ public class CreateTournamentDto : IValidatableObject
 /// </summary>
 public class UpdateTournamentDto : IValidatableObject
 {
+    /// <summary>Turniiri nimi (3–100 märki).</summary>
+    /// <example>Tallinn CS2 Weekend Cup</example>
     [Required(ErrorMessage = "Turniiri nimi on kohustuslik.")]
     [StringLength(100, MinimumLength = 3)]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Mäng või distsipliin.</summary>
+    /// <example>CS2</example>
     [Required]
     [StringLength(50)]
     public string Game { get; set; } = string.Empty;
 
+    /// <summary>Lühikirjeldus (kuni 500 märki).</summary>
+    /// <example>Kiire reedeõhtune turniir.</example>
     [StringLength(500)]
     public string? Description { get; set; }
 
+    /// <summary>Turniiri formaat: SingleElimination või RoundRobin.</summary>
+    /// <example>SingleElimination</example>
     [Required]
     [EnumDataType(typeof(TournamentFormat))]
     public string Format { get; set; } = nameof(TournamentFormat.SingleElimination);
 
+    /// <summary>Turniiri staatus: Registration, InProgress või Finished.</summary>
+    /// <example>Registration</example>
     [Required]
     [EnumDataType(typeof(TournamentStatus))]
     public string Status { get; set; } = nameof(TournamentStatus.Registration);
 
+    /// <summary>Osalejate maksimaalne arv (paarisarv, 2–512).</summary>
+    /// <example>8</example>
     [Required]
     [Range(2, 512, ErrorMessage = "Mängijate maksimaalne arv peab olema vähemalt 2.")]
     public int MaxPlayers { get; set; }
 
+    /// <summary>Turniiri algusaeg (ISO 8601, UTC).</summary>
+    /// <example>2026-12-01T18:00:00Z</example>
     [Required]
     public DateTime StartDate { get; set; }
 

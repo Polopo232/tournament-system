@@ -4,6 +4,6 @@ namespace TournamentSystem.Application.Interfaces;
 
 public interface IUserService
 {
-    Task<List<UserDto>> GetAllAsync();
-    Task<UserDto?> ChangeRoleAsync(int id, string role);
+    Task<UserPageDto> GetPagedAsync(UserQueryParams query);
+    Task<UserDto> ChangeRoleAsync(int id, string role);
 }

@@ -1,8 +1,49 @@
-@host = http://localhost:5195
+@baseUrl = http://localhost:5000
+@tournamentId = 1
+@matchId = 1
+@playerId = 4
+@arenaId = 4gJWpSEN
 
-### Login as admin
-# @name login
-POST {{host}}/api/auth/login
+# Tokenid: käivita login päring, kopeeri "token" väärtus vastusest ja kleebi siia
+@orgToken = 
+@playerToken =
+@adminToken = 
+@serviceToken = 
+### ============================================================
+### 1. Autentimine
+### ============================================================
+
+### 1.1 Registreerimine (avalik nick on kohustuslik)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testplayer",
+  "displayName": "Testija",
+  "email": "testplayer@example.com",
+  "password": "Test123!"
+}
+
+### 1.2 Sisselogimine: organisaator (kopeeri "token" → @orgToken)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "organizer",
+  "password": "Organizer123!"
+}
+
+### 1.3 Sisselogimine: mängija (kopeeri "token" → @playerToken)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "player1",
+  "password": "Player123!"
+}
+
+### 1.4 Sisselogimine: admin (kopeeri "token" → @adminToken)
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
@@ -10,32 +51,203 @@ Content-Type: application/json
   "password": "Admin123!"
 }
 
-###
-@token = {{login.response.body.$.token}}
-
-### Current user
-GET {{host}}/api/auth/me
-Authorization: Bearer {{token}}
-
-### Register a new player
-POST {{host}}/api/auth/register
+### 1.5 Sisselogimine: teenusekonto (kopeeri "token" → @serviceToken)
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "username": "newplayer",
-  "email": "newplayer@tournament.local",
-  "password": "Player123!"
+  "username": "service",
+  "password": "Service123!"
 }
 
-### All users (Admin only)
-GET {{host}}/api/users
-Authorization: Bearer {{token}}
+### 1.6 Kes ma olen
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{orgToken}}
 
-### Change user role (Admin only)
-PUT {{host}}/api/users/4/role
-Authorization: Bearer {{token}}
+### ============================================================
+### 2. Turniirid
+### ============================================================
+
+### 2.1 Nimekiri: otsing, filter, sortimine, lehekülg
+GET {{baseUrl}}/api/tournaments?search=cup&status=Registration&discipline=CS2&sortBy=participants&page=1&pageSize=10
+
+### 2.2 Nimekiri: kõik male turniirid (sh Lichess rapid arenad)
+GET {{baseUrl}}/api/tournaments?discipline=Chess
+
+### 2.3 Nimekiri: ainult Lichessi arenad
+GET {{baseUrl}}/api/tournaments?format=Arena
+
+### 2.4 Turniiri detailid
+GET {{baseUrl}}/api/tournaments/{{tournamentId}}
+
+### 2.5 Turniiri loomine (Organizer), tagastab 201
+POST {{baseUrl}}/api/tournaments
+Authorization: Bearer {{orgToken}}
+Content-Type: application/json
+
+{
+  "name": "Tallinn CS2 Weekend Cup",
+  "game": "CS2",
+  "description": "Avatud 1v1 aim-turniir kõigile mängijatele.",
+  "format": "SingleElimination",
+  "maxPlayers": 8,
+  "startDate": "2026-12-01T18:00:00Z"
+}
+
+### 2.6 Turniiri muutmine (Organizer, ainult oma turniir)
+PUT {{baseUrl}}/api/tournaments/{{tournamentId}}
+Authorization: Bearer {{orgToken}}
+Content-Type: application/json
+
+{
+  "name": "Tallinn CS2 Weekend Cup",
+  "game": "CS2",
+  "description": "Kiire reedeõhtune turniir.",
+  "format": "SingleElimination",
+  "status": "Registration",
+  "maxPlayers": 8,
+  "startDate": "2026-12-01T18:00:00Z"
+}
+
+### 2.7 Turniiri kustutamine (Organizer, ainult oma turniir), tagastab 204
+DELETE {{baseUrl}}/api/tournaments/{{tournamentId}}
+Authorization: Bearer {{orgToken}}
+
+### ============================================================
+### 3. Registreerimine ja turniiritabel
+### ============================================================
+
+### 3.1 Registreerumine turniirile (Player)
+POST {{baseUrl}}/api/tournaments/{{tournamentId}}/registrations
+Authorization: Bearer {{playerToken}}
+
+### 3.2 Turniiritabeli genereerimine (Organizer), tagastab 201
+POST {{baseUrl}}/api/tournaments/{{tournamentId}}/bracket
+Authorization: Bearer {{orgToken}}
+
+### 3.3a Elo ümberarvutus (Organizer)
+POST {{baseUrl}}/api/tournaments/{{tournamentId}}/ratings/recalculate
+Authorization: Bearer {{orgToken}}
+
+### 3.3b Järgmise vooru loomine (Organizer)
+POST {{baseUrl}}/api/tournaments/{{tournamentId}}/rounds/next
+Authorization: Bearer {{orgToken}}
+
+### 3.4 Turniiri käsitsi lõpetamine (Organizer)
+POST {{baseUrl}}/api/tournaments/{{tournamentId}}/finish
+Authorization: Bearer {{orgToken}}
+
+### 3.5 Lõppenud voorud (Service, Worker kasutab seda)
+GET {{baseUrl}}/api/tournaments/rounds-completed
+Authorization: Bearer {{serviceToken}}
+
+### ============================================================
+### 4. Mängude tulemused
+### ============================================================
+
+### 4.1 Tulemuse sisestamine (Organizer, ainult oma turniir)
+PUT {{baseUrl}}/api/matches/{{matchId}}/result
+Authorization: Bearer {{orgToken}}
+Content-Type: application/json
+
+{
+  "player1Score": 2,
+  "player2Score": 1
+}
+
+### ============================================================
+### 5. Mängijad, Elo ja edetabel
+### ============================================================
+
+### 5.1 Avalik profiil (nick, reitingud, võidud)
+GET {{baseUrl}}/api/players/{{playerId}}
+
+### 5.2 Reitingud kõigis mängudes
+GET {{baseUrl}}/api/players/{{playerId}}/ratings
+
+### 5.3 Elo ajalugu
+GET {{baseUrl}}/api/players/{{playerId}}/rating-history
+
+### 5.4 Edetabel mängu järgi
+GET {{baseUrl}}/api/players/leaderboard?game=Chess%20(rapid)&page=1&pageSize=10
+
+### 5.5 Edetabel otsinguga
+GET {{baseUrl}}/api/players/leaderboard?game=CS2&search=mari
+
+### ============================================================
+### 6. Kasutajate haldus (Admin)
+### ============================================================
+
+### 6.1 Kasutajad: otsing, roll, allikas, lehekülg
+GET {{baseUrl}}/api/users?search=mari&role=Player&source=local&sortBy=name&page=1&pageSize=15
+Authorization: Bearer {{adminToken}}
+
+### 6.2 Lichessi kasutajad
+GET {{baseUrl}}/api/users?source=lichess&sortBy=newest
+Authorization: Bearer {{adminToken}}
+
+### 6.3 Rolli muutmine
+PUT {{baseUrl}}/api/users/{{playerId}}/role
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
   "role": "Organizer"
+}
+
+### 6.4 Vigane roll: peab tagastama 400
+PUT {{baseUrl}}/api/users/{{playerId}}/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "role": "Superuser"
+}
+
+### ============================================================
+### 7. Lichess
+### ============================================================
+
+### 7.1 Ühe lõppenud arena import (Admin)
+POST {{baseUrl}}/api/admin/import/lichess/{{arenaId}}
+Authorization: Bearer {{adminToken}}
+
+### 7.2 Lichessi sünkroonimine (Service, Worker kasutab seda)
+POST {{baseUrl}}/api/service/lichess/sync
+Authorization: Bearer {{serviceToken}}
+
+### ============================================================
+### 8. Vead ja õigused
+### ============================================================
+
+### 8.1 Ilma tokenita: 401
+GET {{baseUrl}}/api/tournaments/{{tournamentId}}/rounds-completed
+
+### 8.2 Mängija proovib luua turniiri: 403
+POST {{baseUrl}}/api/tournaments
+Authorization: Bearer {{playerToken}}
+Content-Type: application/json
+
+{
+  "name": "Ebaõnnestuv turniir",
+  "game": "CS2",
+  "format": "SingleElimination",
+  "maxPlayers": 8,
+  "startDate": "2026-12-01T18:00:00Z"
+}
+
+### 8.3 Olematu turniir: 404
+GET {{baseUrl}}/api/tournaments/999999
+
+### 8.4 Paaritu mängijate arv: 400
+POST {{baseUrl}}/api/tournaments
+Authorization: Bearer {{orgToken}}
+Content-Type: application/json
+
+{
+  "name": "Paaritu arv",
+  "game": "CS2",
+  "format": "SingleElimination",
+  "maxPlayers": 7,
+  "startDate": "2026-12-01T18:00:00Z"
 }

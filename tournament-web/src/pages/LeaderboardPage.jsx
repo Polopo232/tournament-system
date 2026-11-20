@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { formatDiscipline } from '../utils/formatters';
 
-const GAMES = ['Chess (rapid)', 'Chess', 'CS2', 'Dota2', 'TableTennis'];
+const GAMES = ['Chess', 'CS2', 'Dota2', 'TableTennis', 'Chess (rapid)'];
 
 export function LeaderboardPage() {
-    const [game, setGame] = useState('Chess (rapid)');
+    const [game, setGame] = useState('Chess');
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
