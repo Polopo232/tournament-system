@@ -37,7 +37,6 @@ export function AdminUsersPage() {
     const [error, setError] = useState(null);
     const [message, setMessage] = useState(null);
 
-    // Otsing: päring läheb välja 300 ms pärast viimast klahvivajutust
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearch(searchInput.trim());
@@ -91,6 +90,25 @@ export function AdminUsersPage() {
         }
     };
 
+    const toggleBlock = async (user) => {
+        const next = !user.isBlocked;
+        const question = next
+            ? `Kas blokeerida kasutaja "${user.displayName}"?`
+            : `Kas avada kasutaja "${user.displayName}"?`;
+
+        if (!window.confirm(question)) return;
+
+        try {
+            setError(null);
+            setMessage(null);
+            await apiClient.put(`/api/users/${user.id}/block`, { isBlocked: next });
+            setMessage(next ? `${user.displayName} on blokeeritud.` : `${user.displayName} on avatud.`);
+            setReloadKey((k) => k + 1);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Konto oleku muutmine ebaõnnestus.');
+        }
+    };
+
     const resetFilters = () => {
         setSearchInput('');
         setSearch('');
@@ -109,7 +127,7 @@ export function AdminUsersPage() {
                     <span className="hero-kicker">Admin</span>
                     <h1 className="hero-title" style={{ fontSize: 40 }}>Kasutajad</h1>
                     <p className="hero-sub">
-                        Otsi kasutajaid, filtreeri rolli ja allika järgi ning muuda rolle.
+                        Otsi kasutajaid, filtreeri rolli ja allika järgi, muuda rolle ja blokeeri kontosid.
                     </p>
                 </div>
                 <div className="hero-stat">
@@ -204,6 +222,7 @@ export function AdminUsersPage() {
                                     <th>E-post</th>
                                     <th>Allikas</th>
                                     <th>Roll</th>
+                                    <th>Konto</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -212,7 +231,7 @@ export function AdminUsersPage() {
                                     const isMe = me && Number(me.id) === u.id;
 
                                     return (
-                                        <tr key={u.id}>
+                                        <tr key={u.id} style={u.isBlocked ? { opacity: 0.6 } : undefined}>
                                             <td>
                                                 <strong>{u.displayName}</strong>{' '}
                                                 <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
@@ -245,6 +264,29 @@ export function AdminUsersPage() {
                                                         <option key={r} value={r}>{r}</option>
                                                     ))}
                                                 </select>
+                                            </td>
+                                            <td>
+                                                {u.isBlocked && (
+                                                    <span
+                                                        className="badge"
+                                                        style={{ color: 'var(--danger)', borderColor: 'rgba(255, 77, 109, 0.4)', marginRight: 8 }}
+                                                    >
+                                                        Blokeeritud
+                                                    </span>
+                                                )}
+                                                <button
+                                                    className={`btn btn-sm ${u.isBlocked ? 'btn-outline' : ''}`}
+                                                    style={
+                                                        u.isBlocked
+                                                            ? undefined
+                                                            : { background: 'var(--danger-soft)', color: 'var(--danger)' }
+                                                    }
+                                                    disabled={isMe || loading}
+                                                    title={isMe ? 'Oma kontot ei saa blokeerida' : undefined}
+                                                    onClick={() => toggleBlock(u)}
+                                                >
+                                                    {u.isBlocked ? 'Ava' : 'Blokeeri'}
+                                                </button>
                                             </td>
                                         </tr>
                                     );
