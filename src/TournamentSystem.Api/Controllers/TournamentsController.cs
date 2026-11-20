@@ -138,7 +138,7 @@ public class TournamentsController(
     /// <response code="404">Turniiri ei leitud.</response>
     [HttpPost("{id}/bracket")]
     [Authorize(Roles = "Organizer,Admin")]
-    [ProducesResponseType(typeof(List<MatchDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<MatchDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -146,7 +146,7 @@ public class TournamentsController(
     public async Task<ActionResult<List<MatchDto>>> GenerateBracket(int id)
     {
         var matches = await bracketService.GenerateBracketAsync(id, GetCurrentUser());
-        return Ok(matches);
+        return StatusCode(StatusCodes.Status201Created, matches);
     }
 
     /// <summary>

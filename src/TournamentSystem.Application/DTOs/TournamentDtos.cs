@@ -18,35 +18,31 @@ public class PagedResultDto<T>
 /// <summary>
 /// Turniiride otsimise, filtreerimise, sorteerimise ja lehekülgede parameetrid.
 /// </summary>
+/// <summary>
+/// Turniiride otsimise, filtreerimise, sorteerimise ja lehekülgede parameetrid.
+/// </summary>
 public class TournamentQueryParams
 {
     /// <summary>Otsing turniiri nime järgi.</summary>
-    /// <example>cup</example>
     public string? Search { get; set; }
 
     /// <summary>Staatus: Registration, InProgress või Finished.</summary>
-    /// <example>Registration</example>
     public string? Status { get; set; }
 
     /// <summary>Mäng: Chess, CS2, Dota2 või TableTennis. Chess leiab ka Chess (rapid) arenad.</summary>
-    /// <example>CS2</example>
     public string? Discipline { get; set; }
 
     /// <summary>Formaat: SingleElimination, RoundRobin või Arena.</summary>
-    /// <example>SingleElimination</example>
     public string? Format { get; set; }
 
     /// <summary>Sortimine: startdate, participants, name, maxplayers. Tühi väärtus annab uuemad enne.</summary>
-    /// <example>participants</example>
     public string? SortBy { get; set; }
 
     /// <summary>Lehekülg, alates 1.</summary>
-    /// <example>1</example>
     [Range(1, int.MaxValue)]
     public int Page { get; set; } = 1;
 
     /// <summary>Ridade arv lehel (1–100).</summary>
-    /// <example>10</example>
     [Range(1, 100)]
     public int PageSize { get; set; } = 10;
 }
