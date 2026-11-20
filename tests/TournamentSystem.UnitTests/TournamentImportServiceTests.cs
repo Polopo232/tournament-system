@@ -23,6 +23,9 @@ public class TournamentImportServiceTests
             _users.Object,
             _arena.Object,
             _logger.Object);
+
+        _tournaments.Setup(t => t.GetAllAsync())
+            .ReturnsAsync(new List<Tournament>());
     }
 
     [Fact]
