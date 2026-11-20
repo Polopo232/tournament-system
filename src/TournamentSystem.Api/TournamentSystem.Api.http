@@ -4,16 +4,13 @@
 @playerId = 4
 @arenaId = 4gJWpSEN
 
-# Tokenid: käivita login päring, kopeeri väärtus "token" vastusest ja kleebi siia
-@orgToken =
+# Tokenid: käivita login päring, kopeeri "token" väärtus vastusest ja kleebi siia
+@orgToken = 
 @playerToken =
-@adminToken =
-@serviceToken =
-
+@adminToken = 
+@serviceToken = 
 ### ============================================================
 ### 1. Autentimine
-### Käivita enne kõiki kaitstud päringuid. Token salvestatakse
-### automaatselt nime järgi: {{organizerLogin.response.body.token}}
 ### ============================================================
 
 ### 1.1 Registreerimine (avalik nick on kohustuslik)
@@ -27,8 +24,7 @@ Content-Type: application/json
   "password": "Test123!"
 }
 
-### 1.2 Sisselogimine: organisaator
-# @name organizerLogin
+### 1.2 Sisselogimine: organisaator (kopeeri "token" → @orgToken)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -37,8 +33,7 @@ Content-Type: application/json
   "password": "Organizer123!"
 }
 
-### 1.3 Sisselogimine: mängija
-# @name playerLogin
+### 1.3 Sisselogimine: mängija (kopeeri "token" → @playerToken)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -47,8 +42,7 @@ Content-Type: application/json
   "password": "Player123!"
 }
 
-### 1.4 Sisselogimine: admin
-# @name adminLogin
+### 1.4 Sisselogimine: admin (kopeeri "token" → @adminToken)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -57,8 +51,7 @@ Content-Type: application/json
   "password": "Admin123!"
 }
 
-### 1.5 Sisselogimine: teenusekonto (Worker)
-# @name serviceLogin
+### 1.5 Sisselogimine: teenusekonto (kopeeri "token" → @serviceToken)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -69,7 +62,7 @@ Content-Type: application/json
 
 ### 1.6 Kes ma olen
 GET {{baseUrl}}/api/auth/me
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
 ### ============================================================
 ### 2. Turniirid
@@ -87,9 +80,9 @@ GET {{baseUrl}}/api/tournaments?format=Arena
 ### 2.4 Turniiri detailid
 GET {{baseUrl}}/api/tournaments/{{tournamentId}}
 
-### 2.5 Turniiri loomine (Organizer)
+### 2.5 Turniiri loomine (Organizer), tagastab 201
 POST {{baseUrl}}/api/tournaments
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 Content-Type: application/json
 
 {
@@ -103,7 +96,7 @@ Content-Type: application/json
 
 ### 2.6 Turniiri muutmine (Organizer, ainult oma turniir)
 PUT {{baseUrl}}/api/tournaments/{{tournamentId}}
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 Content-Type: application/json
 
 {
@@ -116,9 +109,9 @@ Content-Type: application/json
   "startDate": "2026-12-01T18:00:00Z"
 }
 
-### 2.7 Turniiri kustutamine (Organizer, ainult oma turniir)
+### 2.7 Turniiri kustutamine (Organizer, ainult oma turniir), tagastab 204
 DELETE {{baseUrl}}/api/tournaments/{{tournamentId}}
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
 ### ============================================================
 ### 3. Registreerimine ja turniiritabel
@@ -126,34 +119,35 @@ Authorization: Bearer {{organizerLogin.response.body.token}}
 
 ### 3.1 Registreerumine turniirile (Player)
 POST {{baseUrl}}/api/tournaments/{{tournamentId}}/registrations
-Authorization: Bearer {{playerLogin.response.body.token}}
+Authorization: Bearer {{playerToken}}
 
 ### 3.2 Turniiritabeli genereerimine (Organizer), tagastab 201
 POST {{baseUrl}}/api/tournaments/{{tournamentId}}/bracket
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
-### 3.3 Elo ümberarvutus ja järgmine voor (Organizer)
+### 3.3a Elo ümberarvutus (Organizer)
 POST {{baseUrl}}/api/tournaments/{{tournamentId}}/ratings/recalculate
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
+### 3.3b Järgmise vooru loomine (Organizer)
 POST {{baseUrl}}/api/tournaments/{{tournamentId}}/rounds/next
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
 ### 3.4 Turniiri käsitsi lõpetamine (Organizer)
 POST {{baseUrl}}/api/tournaments/{{tournamentId}}/finish
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 
 ### 3.5 Lõppenud voorud (Service, Worker kasutab seda)
 GET {{baseUrl}}/api/tournaments/rounds-completed
-Authorization: Bearer {{serviceLogin.response.body.token}}
+Authorization: Bearer {{serviceToken}}
 
-## ============================================================
-## 4. Mängude tulemused
+### ============================================================
+### 4. Mängude tulemused
 ### ============================================================
 
 ### 4.1 Tulemuse sisestamine (Organizer, ainult oma turniir)
 PUT {{baseUrl}}/api/matches/{{matchId}}/result
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 Content-Type: application/json
 
 {
@@ -186,15 +180,15 @@ GET {{baseUrl}}/api/players/leaderboard?game=CS2&search=mari
 
 ### 6.1 Kasutajad: otsing, roll, allikas, lehekülg
 GET {{baseUrl}}/api/users?search=mari&role=Player&source=local&sortBy=name&page=1&pageSize=15
-Authorization: Bearer {{adminLogin.response.body.token}}
+Authorization: Bearer {{adminToken}}
 
 ### 6.2 Lichessi kasutajad
 GET {{baseUrl}}/api/users?source=lichess&sortBy=newest
-Authorization: Bearer {{adminLogin.response.body.token}}
+Authorization: Bearer {{adminToken}}
 
 ### 6.3 Rolli muutmine
 PUT {{baseUrl}}/api/users/{{playerId}}/role
-Authorization: Bearer {{adminLogin.response.body.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -203,7 +197,7 @@ Content-Type: application/json
 
 ### 6.4 Vigane roll: peab tagastama 400
 PUT {{baseUrl}}/api/users/{{playerId}}/role
-Authorization: Bearer {{adminLogin.response.body.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -216,11 +210,11 @@ Content-Type: application/json
 
 ### 7.1 Ühe lõppenud arena import (Admin)
 POST {{baseUrl}}/api/admin/import/lichess/{{arenaId}}
-Authorization: Bearer {{adminLogin.response.body.token}}
+Authorization: Bearer {{adminToken}}
 
 ### 7.2 Lichessi sünkroonimine (Service, Worker kasutab seda)
 POST {{baseUrl}}/api/service/lichess/sync
-Authorization: Bearer {{serviceLogin.response.body.token}}
+Authorization: Bearer {{serviceToken}}
 
 ### ============================================================
 ### 8. Vead ja õigused
@@ -229,9 +223,9 @@ Authorization: Bearer {{serviceLogin.response.body.token}}
 ### 8.1 Ilma tokenita: 401
 GET {{baseUrl}}/api/tournaments/{{tournamentId}}/rounds-completed
 
-### 8.2 Mängija proovib loomist: 403
+### 8.2 Mängija proovib luua turniiri: 403
 POST {{baseUrl}}/api/tournaments
-Authorization: Bearer {{playerLogin.response.body.token}}
+Authorization: Bearer {{playerToken}}
 Content-Type: application/json
 
 {
@@ -245,9 +239,9 @@ Content-Type: application/json
 ### 8.3 Olematu turniir: 404
 GET {{baseUrl}}/api/tournaments/999999
 
-### 8.4 Vigased andmed: 400 (paaritu mängijate arv)
+### 8.4 Paaritu mängijate arv: 400
 POST {{baseUrl}}/api/tournaments
-Authorization: Bearer {{organizerLogin.response.body.token}}
+Authorization: Bearer {{orgToken}}
 Content-Type: application/json
 
 {
